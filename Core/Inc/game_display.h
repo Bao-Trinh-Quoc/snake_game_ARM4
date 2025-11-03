@@ -44,6 +44,8 @@ uint8_t moveSnake();
 
 void advanceSnakeHead();
 
+void advanceSnakeHeadTo(int16_t nx, int16_t ny);
+
 void removeSnakeTail();
 
 void handleInput();

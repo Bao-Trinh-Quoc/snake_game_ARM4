@@ -27,6 +27,7 @@ uint8_t isButtonLeft(void);
 
 uint8_t isButtonRight(void);
 
-
+uint8_t isHomeButtonTouched(void);
+uint8_t isPauseButtonTouched(void);
 
 #endif /* INC_GAME_CONTROL_H_ */
