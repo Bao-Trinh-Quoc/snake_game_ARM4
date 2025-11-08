@@ -148,6 +148,7 @@ int main(void)
 //	 SNAKE
 	  //scan touch screen
 	  touch_Scan();
+	  button_Scan();
 	  if (flag_timer2 == 1) {
 		  gameFSM();
 	  }

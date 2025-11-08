@@ -5,6 +5,7 @@
 #include "lcd.h"
 #include "touch.h"
 #include "game_display.h"
+#include "button.h" //new
 
 
 #define DIRECTION_BTN_X 50
@@ -27,6 +28,12 @@ uint8_t isButtonLeft(void);
 
 uint8_t isButtonRight(void);
 
+uint8_t isPhyButtonUpEdge(void);  //new
+uint8_t isPhyButtonDownEdge(void);  
+uint8_t isPhyButtonLeftEdge(void); 
+uint8_t isPhyButtonRightEdge(void);
+uint8_t isPhyStartEdge(void);
+uint8_t isPhyPauseEdge(void);
 
 
 #endif /* INC_GAME_CONTROL_H_ */

@@ -95,13 +95,13 @@ void removeSnakeTail() {
 }
 
 void handleInput() {
-    if (isButtonLeft() && (snakeDirection == UP || snakeDirection == DOWN)) {
+    if ((isButtonLeft() || isPhyButtonLeftEdge()) && (snakeDirection == UP || snakeDirection == DOWN)) { //new
         snakeDirection = LEFT;
-    } else if (isButtonRight() && (snakeDirection == UP || snakeDirection == DOWN)) {
+    } else if ((isButtonRight() || isPhyButtonRightEdge()) && (snakeDirection == UP || snakeDirection == DOWN)) {
         snakeDirection = RIGHT;
-    } else if (isButtonUp() && (snakeDirection == LEFT || snakeDirection == RIGHT)) {
+    } else if ((isButtonUp() || isPhyButtonUpEdge()) && (snakeDirection == LEFT || snakeDirection == RIGHT)) {
         snakeDirection = UP;
-    } else if (isButtonDown() && (snakeDirection == LEFT || snakeDirection == RIGHT)) {
+    } else if ((isButtonDown() || isPhyButtonDownEdge()) && (snakeDirection == LEFT || snakeDirection == RIGHT)) {
         snakeDirection = DOWN;
     }
 }
@@ -110,4 +110,9 @@ void handleInput() {
 void displayStartScreen(void) {
     lcd_Fill(SCREEN_X, SCREEN_Y, SCREEN_X + SCREEN_SIZE, SCREEN_Y + SCREEN_SIZE, BLACK);
     lcd_ShowStr(SCREEN_X + 40, SCREEN_Y + 50, "START", GREEN, BLACK, 32, 1);
+}
+
+void displayPauseScreen(void) { //new
+    lcd_Fill(SCREEN_X, SCREEN_Y, SCREEN_X + SCREEN_SIZE, SCREEN_Y + SCREEN_SIZE, BLACK);
+    lcd_ShowStr(SCREEN_X + 40, SCREEN_Y + 50, "PAUSE", RED, BLACK, 32, 1);
 }

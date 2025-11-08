@@ -52,5 +52,7 @@ void displayStartScreen(void);
 
 void displayRetryButton(void);
 
+void displayPauseScreen(void); //new
+
 
 #endif /* INC_GAME_DISPLAY_H_ */

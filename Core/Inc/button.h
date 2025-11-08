@@ -15,6 +15,7 @@ extern uint16_t button_count[16];
 
 void button_init();
 void button_Scan();
+uint8_t button_pressed_edge(uint8_t idx);//new
 
 #endif /* INC_BUTTON_H_ */
 

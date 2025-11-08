@@ -7,8 +7,16 @@
 
 #include "game_control.h"
 
+#define BTN_IDX_UP      1 //new
+#define BTN_IDX_DOWN    9
+#define BTN_IDX_LEFT    4
+#define BTN_IDX_RIGHT   6
+#define BTN_IDX_START   5
+#define BTN_PAUSE  		15
+
+
 typedef enum {
-    GAME_START, GAME_PLAY, GAME_OVER
+    GAME_START, GAME_PLAY, GAME_OVER, GAME_PAUSE
 } GameState;
 
 static GameState currentState = GAME_START;
@@ -66,6 +74,15 @@ void gameFSM(void) {
                 renderScreen();
                 setTimer_snake(500);
             }
+            if(isPhyStartEdge()){ //new
+                currentState = GAME_START;
+                initializeGame();
+                renderScreen();
+                score = 0;
+            }
+            if (isPhyPauseEdge()) { //new
+                currentState = GAME_PAUSE;
+                displayPauseScreen();
             break;
         case GAME_OVER:
         	displayStartScreen();
@@ -76,6 +93,17 @@ void gameFSM(void) {
                 score = 0;
             }
             break;
+        case GAME_PAUSE: //new
+            if (button_read_flag) {
+                setTimer_button(5);
+                if (isPhyPauseEdge() && currentState == GAME_PAUSE) {
+                    currentState = GAME_PLAY;
+                    renderScreen();  
+                    return;
+                }
+            }
+            break;
+        }
     }
 }
 
@@ -123,8 +151,24 @@ uint8_t isButtonRight(void) {
     return 0;
 }
 
-uint8_t isStartScreenTouched(void) {
-    if (!touch_IsTouched()) return 0;
-    return touch_GetX() > SCREEN_X && touch_GetX() < SCREEN_X + SCREEN_SIZE && touch_GetY() > SCREEN_Y && touch_GetY() < SCREEN_Y + SCREEN_SIZE;
+uint8_t isPhyButtonUpEdge(void)    { return button_pressed_edge(BTN_IDX_UP);    }//new
+uint8_t isPhyButtonDownEdge(void)  { return button_pressed_edge(BTN_IDX_DOWN);  }
+uint8_t isPhyButtonLeftEdge(void)  { return button_pressed_edge(BTN_IDX_LEFT);  }
+uint8_t isPhyButtonRightEdge(void) { return button_pressed_edge(BTN_IDX_RIGHT); }
+uint8_t isPhyStartEdge(void)       { return button_pressed_edge(BTN_IDX_START);}
+uint8_t isPhyPauseEdge(void)       { return button_pressed_edge(BTN_PAUSE);}
+
+// uint8_t isStartScreenTouched(void) {
+//     if (!touch_IsTouched()) return 0;
+//     return touch_GetX() > SCREEN_X && touch_GetX() < SCREEN_X + SCREEN_SIZE && touch_GetY() > SCREEN_Y && touch_GetY() < SCREEN_Y + SCREEN_SIZE;
+// }
+uint8_t isStartScreenTouched(void){ //new
+    if (touch_IsTouched() &&
+        touch_GetX() > SCREEN_X && touch_GetX() < SCREEN_X + SCREEN_SIZE &&
+        touch_GetY() > SCREEN_Y && touch_GetY() < SCREEN_Y + SCREEN_SIZE) {
+        return 1;
+    }
+    if (isPhyStartEdge()) return 1;
+    return 0;
 }
 
