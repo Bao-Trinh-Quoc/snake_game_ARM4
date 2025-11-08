@@ -39,6 +39,7 @@
 #include "touch.h"
 #include "game_display.h"
 #include "game_control.h"
+#include "led7seg_app.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
