@@ -295,7 +295,3 @@ uint16_t startScreenHandleColorTouch(void) {
     return 0;
 }
 
-void displayPauseScreen(void) { //new
-    lcd_Fill(SCREEN_X, SCREEN_Y, SCREEN_X + SCREEN_SIZE, SCREEN_Y + SCREEN_SIZE, BLACK);
-    lcd_ShowStr(SCREEN_X + 40, SCREEN_Y + 50, "PAUSE", RED, BLACK, 32, 1);
-}

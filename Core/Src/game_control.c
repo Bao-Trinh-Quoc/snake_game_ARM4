@@ -11,8 +11,7 @@
 #define BTN_IDX_DOWN    9
 #define BTN_IDX_LEFT    4
 #define BTN_IDX_RIGHT   6
-#define BTN_IDX_START   5
-#define BTN_PAUSE  		15
+
 
 typedef enum {
     GAME_INIT, GAME_START, GAME_PLAY, GAME_OVER, GAME_COLOR_SELECT, GAME_PAUSE
@@ -131,7 +130,7 @@ void gameFSM(void) {
                 currentState = GAME_PLAY;
                 lcd_Fill(0, 0, 240, 320, BLACK);
                 initializeGame();
-                renderScreen();
+//                renderScreen();
                 setTimer_button(5);
                 setTimer_snake(300);
             }
@@ -190,7 +189,7 @@ void gameFSM(void) {
                     removeSnakeTail();
                 }
 
-                renderScreen();
+//                renderScreen();
                 setTimer_snake(300);
             }
 
@@ -208,22 +207,12 @@ void gameFSM(void) {
                 setTimer_button(5);
                 handleInput();
             }
-            if(isPhyStartEdge()){
-				currentState = GAME_START;
-				initializeGame();
-				renderScreen();
-				score = 0;
-			}
-			if (isPhyPauseEdge() || isPauseButtonTouched()) {
-				currentState = GAME_PAUSE;
-				displayPauseScreen();
-			}
             break;
 
         case GAME_PAUSE:
-            lcd_ShowStr(80, 150, "PAUSED", YELLOW, BLACK, 24, 1);
+//            lcd_ShowStr(80, 150, "PAUSED", YELLOW, BLACK, 24, 1);
 
-            // lcd on screen button
+            // lcd on screen button and physical button
             if (isPauseButtonTouched()) {
                 currentState = GAME_PLAY;
             }
@@ -353,5 +342,4 @@ uint8_t isPhyButtonUpEdge(void)    { return button_pressed_edge(BTN_IDX_UP);    
 uint8_t isPhyButtonDownEdge(void)  { return button_pressed_edge(BTN_IDX_DOWN);  }
 uint8_t isPhyButtonLeftEdge(void)  { return button_pressed_edge(BTN_IDX_LEFT);  }
 uint8_t isPhyButtonRightEdge(void) { return button_pressed_edge(BTN_IDX_RIGHT); }
-uint8_t isPhyStartEdge(void)       { return button_pressed_edge(BTN_IDX_START);}
-uint8_t isPhyPauseEdge(void)       { return button_pressed_edge(BTN_PAUSE);}
+
