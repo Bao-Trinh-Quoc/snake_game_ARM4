@@ -186,31 +186,31 @@ void placeMazeObstacles(void) {
     // ===== THANH DỌC BÊN TRÁI =====
     for (int y = 2; y <= 10; y++) {
         gameGrid[2][y] = 3;
-        drawCell(2, y, GRAY);
+        drawCell(2, y, BRRED);
     }
 
     // ===== THANH DỌC BÊN PHẢI =====
     for (int y = 5; y <= 15; y++) {
         gameGrid[13][y] = 3;
-        drawCell(13, y, GRAY);
+        drawCell(13, y, BRRED);
     }
 
     // ===== THANH NGANG GIỮA =====
     for (int x = 4; x <= 12; x++) {
         gameGrid[x][8] = 3;
-        drawCell(x, 8, GRAY);
+        drawCell(x, 8, BRRED);
     }
 
     // ===== THANH DỌC NGẮN BÊN DƯỚI =====
     for (int y = 12; y <= 15; y++) {
         gameGrid[7][y] = 3;
-        drawCell(7, y, GRAY);
+        drawCell(7, y, BRRED);
     }
 
     // ===== THANH NGANG DƯỚI =====
     for (int x = 3; x <= 10; x++) {
         gameGrid[x][15] = 3;
-        drawCell(x, 15, GRAY);
+        drawCell(x, 15, BRRED);
     }
 }
 
@@ -218,25 +218,25 @@ void placeBorderWalls(void) {
     // === Top border (viền trên) ===
     for (int x = 0; x < GRID_ROWS; x++) {
         gameGrid[x][0] = 3;
-        drawCell(x, 0, GRAY);
+        drawCell(x, 0, MAGENTA );
     }
 
     // === Bottom border (viền dưới) ===
     for (int x = 0; x < GRID_ROWS; x++) {
         gameGrid[x][GRID_COLS - 1] = 3;
-        drawCell(x, GRID_COLS - 1, GRAY);
+        drawCell(x, GRID_COLS - 1, MAGENTA );
     }
 
     // === Left border (viền trái) ===
     for (int y = 0; y < GRID_COLS; y++) {
         gameGrid[0][y] = 3;
-        drawCell(0, y, GRAY);
+        drawCell(0, y, MAGENTA );
     }
 
     // === Right border (viền phải) ===
     for (int y = 0; y < GRID_COLS; y++) {
         gameGrid[GRID_ROWS - 1][y] = 3;
-        drawCell(GRID_ROWS - 1, y, GRAY);
+        drawCell(GRID_ROWS - 1, y, MAGENTA);
     }
 }
 
@@ -452,14 +452,14 @@ static void drawMapPreview(uint8_t mapId,
     // MAP PREVIEW
     switch (mapId) {
     case 0: // CLASSIC
-        lcd_DrawRectangle(px1, py1, px2, py2, GRAY);
+        lcd_DrawRectangle(px1, py1, px2, py2, BRRED);
         break;
 
     case 1: // BORDER
-        lcd_Fill(px1, py1, px2, py1+2, GRAY);        // top
-        lcd_Fill(px1, py2-2, px2, py2, GRAY);        // bottom
-        lcd_Fill(px1, py1, px1+2, py2, GRAY);        // left
-        lcd_Fill(px2-2, py1, px2, py2, GRAY);        // right
+        lcd_Fill(px1, py1, px2, py1+2, MAGENTA );        // top
+        lcd_Fill(px1, py2-2, px2, py2, MAGENTA );        // bottom
+        lcd_Fill(px1, py1, px1+2, py2, MAGENTA );        // left
+        lcd_Fill(px2-2, py1, px2, py2, MAGENTA );        // right
         break;
 
     case 2: // PLUS
@@ -468,11 +468,11 @@ static void drawMapPreview(uint8_t mapId,
         break;
 
     case 3: // MAZE
-        lcd_Fill(px1+3, py1, px1+5, py1+(py2-py1)*2/3, GRAY);
-        lcd_Fill(px2-5, py1+(py2-py1)/4, px2-3, py2, GRAY);
-        lcd_Fill(px1+8, midY-1, px2-8, midY+1, GRAY);
-        lcd_Fill(midX-1, midY, midX+1, py2-5, GRAY);
-        lcd_Fill(px1+6, py2-4, px2-12, py2-2, GRAY);
+        lcd_Fill(px1+3, py1, px1+5, py1+(py2-py1)*2/3, BRRED);
+        lcd_Fill(px2-5, py1+(py2-py1)/4, px2-3, py2, BRRED);
+        lcd_Fill(px1+8, midY-1, px2-8, midY+1, BRRED);
+        lcd_Fill(midX-1, midY, midX+1, py2-5, BRRED);
+        lcd_Fill(px1+6, py2-4, px2-12, py2-2, BRRED);
         break;
     }
 }
