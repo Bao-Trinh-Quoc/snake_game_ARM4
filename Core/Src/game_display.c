@@ -60,13 +60,61 @@ void renderScreen(void) {
 }
 
 void generateFruit(void) {
-    do {
-        fruit.x = rand() % GRID_ROWS;
-        fruit.y = rand() % GRID_COLS;
-    } while (gameGrid[fruit.x][fruit.y] != 0);
+    while (1) {
+        uint16_t x = 1 + rand() % (GRID_ROWS - 2);
+        uint16_t y = 1 + rand() % (GRID_COLS - 2);
 
-    gameGrid[fruit.x][fruit.y] = 2;
-    drawCell(fruit.x, fruit.y, RED);  // vẽ ngay mồi
+        if (gameGrid[x][y] == 0) {   // chỉ spawn vào ô trống
+            fruit.x = x;
+            fruit.y = y;
+            gameGrid[x][y] = 2;
+            drawCell(x, y, RED);
+            break;
+        }
+    }
+}
+
+void generateSafeSnakeStart(uint16_t *hx, uint16_t *hy,
+                            uint16_t *tx, uint16_t *ty,
+                            enum Direction *dir)
+{
+    while (1) {
+        // tránh viền: 1..GRID-2
+        uint16_t x = 1 + rand() % (GRID_ROWS - 2);
+        uint16_t y = 1 + rand() % (GRID_COLS - 2);
+
+        // ô đầu phải trống
+        if (gameGrid[x][y] != 0) continue;
+
+        // random hướng 0..3
+        int d = rand() % 4;
+        int dx = 0, dy = 0;
+
+        switch (d) {
+            case 0: dx = -1; dy = 0;  *dir = LEFT;  break;
+            case 1: dx =  1; dy = 0;  *dir = RIGHT; break;
+            case 2: dx = 0;  dy = -1; *dir = UP;    break;
+            case 3: dx = 0;  dy =  1; *dir = DOWN;  break;
+        }
+
+        // tail = ngược hướng head
+        int txPos = x - dx;
+        int tyPos = y - dy;
+
+        // tail phải nằm trong map
+        if (txPos < 1 || txPos > GRID_ROWS - 2) continue;
+        if (tyPos < 1 || tyPos > GRID_COLS - 2) continue;
+
+        // tail không trùng obstacle hoặc fruit
+        if (gameGrid[txPos][tyPos] != 0) continue;
+
+        // hợp lệ -> trả dữ liệu
+        *hx = x;
+        *hy = y;
+        *tx = txPos;
+        *ty = tyPos;
+        return;
+    }
 }
 
 void initializeGame(void) {
@@ -75,42 +123,47 @@ void initializeGame(void) {
         for (uint8_t j = 0; j < GRID_COLS; ++j)
             prevX[i][j] = prevY[i][j] = -1;
 
-    // NỀN vùng chơi: đen (chỉ tô vùng PLAY, không đụng viền trắng)
+    // nền vùng chơi
     lcd_Fill(PLAY_X, PLAY_Y, PLAY_X + PLAY_SIZE, PLAY_Y + PLAY_SIZE, BLACK);
 
-    // Viền trắng 1px — vẽ MỘT LẦN
+    // Viền LCD (frame trắng)
     drawPlayfieldFrame();
 
-    // Khởi tạo rắn (2 ô)
-    snake.headX = 1;
-    snake.headY = 0;
-    snake.tailX = 0;
-    snake.tailY = 1;
-    snakeDirection = RIGHT;
+    // ==== Viền map hoặc Maze trước ====
+//    placeBorderWalls();
+//    placeMazeObstacles();   // nếu có maze bên trong
+    // ==== Random vị trí + random hướng ====
+    uint16_t hx, hy, tx, ty;
+    enum Direction dir;
 
-    gameGrid[snake.tailX][snake.tailY] = 1;
-    gameGrid[snake.headX][snake.headY] = 1;
+    generateSafeSnakeStart(&hx, &hy, &tx, &ty, &dir);
 
-    prevX[snake.headX][snake.headY] = snake.tailX;
-    prevY[snake.headX][snake.headY] = snake.tailY;
-    prevX[snake.tailX][snake.tailY] = -1;
-    prevY[snake.tailX][snake.tailY] = -1;
+    snake.headX = hx;
+    snake.headY = hy;
+    snake.tailX = tx;
+    snake.tailY = ty;
+    snakeDirection = dir;   // <<<< RANDOM HƯỚNG
 
-    // Vẽ 2 ô rắn ban đầu (lọt trong vùng PLAY, không đè viền)
+    gameGrid[tx][ty] = 1;
+    gameGrid[hx][hy] = 1;
+
+    prevX[hx][hy] = tx;
+    prevY[hx][hy] = ty;
+    prevX[tx][ty] = -1;
+    prevY[tx][ty] = -1;
+
+    // Vẽ rắn
     {
         uint16_t snakeColor = (snake.color ? snake.color : GREEN);
-        drawCell(snake.tailX, snake.tailY, snakeColor);
-        drawCell(snake.headX, snake.headY, snakeColor);
+        drawCell(tx, ty, snakeColor);
+        drawCell(hx, hy, snakeColor);
     }
 
-    // Mồi
+    // ==== Spawn mồi tránh viền + tránh tường ====
     fruit.color = RED;
     generateFruit();
-
-    // Hướng
-    snakeDirection = DOWN;
-    placeObstaclePlus();
 }
+
 
 void placeObstaclePlus(void) {
     uint8_t cx = GRID_ROWS / 2 - 1;   // tâm
@@ -128,6 +181,66 @@ void placeObstaclePlus(void) {
         drawCell(cx, cy + j, GBLUE);
     }
 }
+
+void placeMazeObstacles(void) {
+    // ===== THANH DỌC BÊN TRÁI =====
+    for (int y = 2; y <= 10; y++) {
+        gameGrid[2][y] = 3;
+        drawCell(2, y, GRAY);
+    }
+
+    // ===== THANH DỌC BÊN PHẢI =====
+    for (int y = 5; y <= 15; y++) {
+        gameGrid[13][y] = 3;
+        drawCell(13, y, GRAY);
+    }
+
+    // ===== THANH NGANG GIỮA =====
+    for (int x = 4; x <= 12; x++) {
+        gameGrid[x][8] = 3;
+        drawCell(x, 8, GRAY);
+    }
+
+    // ===== THANH DỌC NGẮN BÊN DƯỚI =====
+    for (int y = 12; y <= 15; y++) {
+        gameGrid[7][y] = 3;
+        drawCell(7, y, GRAY);
+    }
+
+    // ===== THANH NGANG DƯỚI =====
+    for (int x = 3; x <= 10; x++) {
+        gameGrid[x][15] = 3;
+        drawCell(x, 15, GRAY);
+    }
+}
+
+void placeBorderWalls(void) {
+    // === Top border (viền trên) ===
+    for (int x = 0; x < GRID_ROWS; x++) {
+        gameGrid[x][0] = 3;
+        drawCell(x, 0, GRAY);
+    }
+
+    // === Bottom border (viền dưới) ===
+    for (int x = 0; x < GRID_ROWS; x++) {
+        gameGrid[x][GRID_COLS - 1] = 3;
+        drawCell(x, GRID_COLS - 1, GRAY);
+    }
+
+    // === Left border (viền trái) ===
+    for (int y = 0; y < GRID_COLS; y++) {
+        gameGrid[0][y] = 3;
+        drawCell(0, y, GRAY);
+    }
+
+    // === Right border (viền phải) ===
+    for (int y = 0; y < GRID_COLS; y++) {
+        gameGrid[GRID_ROWS - 1][y] = 3;
+        drawCell(GRID_ROWS - 1, y, GRAY);
+    }
+}
+
+
 
 
 /* Không dùng trong FSM hiện tại, giữ lại tham khảo */
@@ -314,4 +427,110 @@ uint16_t startScreenHandleColorTouch(void) {
     }
     return 0;
 }
+
+static void drawMapPreview(uint8_t mapId,
+                           uint16_t x1, uint16_t y1,
+                           uint16_t x2, uint16_t y2,
+                           uint8_t selected)
+{
+    uint16_t borderColor = selected ? RED : WHITE;
+
+    // viền khung preview
+    lcd_DrawRectangle(x1, y1, x2, y2, borderColor);
+
+    // nền trong khung
+    lcd_Fill(x1+1, y1+1, x2-1, y2-1, BLACK);
+
+    uint16_t px1 = x1 + 5;
+    uint16_t py1 = y1 + 5;
+    uint16_t px2 = x2 - 5;
+    uint16_t py2 = y2 - 5;
+
+    uint16_t midX = (px1 + px2) / 2;
+    uint16_t midY = (py1 + py2) / 2;
+
+    // MAP PREVIEW
+    switch (mapId) {
+    case 0: // CLASSIC
+        lcd_DrawRectangle(px1, py1, px2, py2, GRAY);
+        break;
+
+    case 1: // BORDER
+        lcd_Fill(px1, py1, px2, py1+2, GRAY);        // top
+        lcd_Fill(px1, py2-2, px2, py2, GRAY);        // bottom
+        lcd_Fill(px1, py1, px1+2, py2, GRAY);        // left
+        lcd_Fill(px2-2, py1, px2, py2, GRAY);        // right
+        break;
+
+    case 2: // PLUS
+        lcd_Fill(px1, midY-1, px2, midY+1, GBLUE);
+        lcd_Fill(midX-1, py1, midX+1, py2, GBLUE);
+        break;
+
+    case 3: // MAZE
+        lcd_Fill(px1+3, py1, px1+5, py1+(py2-py1)*2/3, GRAY);
+        lcd_Fill(px2-5, py1+(py2-py1)/4, px2-3, py2, GRAY);
+        lcd_Fill(px1+8, midY-1, px2-8, midY+1, GRAY);
+        lcd_Fill(midX-1, midY, midX+1, py2-5, GRAY);
+        lcd_Fill(px1+6, py2-4, px2-12, py2-2, GRAY);
+        break;
+    }
+}
+
+
+void displayMapSelectScreen(void) {
+    lcd_Fill(0,0,240,320,BLACK);
+    lcd_ShowStr(40, 10, "SELECT MAP", WHITE, BLACK, 24, 0);
+
+    uint16_t w = 90, h = 60;
+
+    uint16_t m0_x1 = 20,     m0_y1 = 50;
+    uint16_t m0_x2 = m0_x1+w, m0_y2 = m0_y1+h;
+    drawMapPreview(0, m0_x1, m0_y1, m0_x2, m0_y2, selectedMap==0);
+    lcd_ShowStr(m0_x1+15, m0_y2+5, "CLASSIC", WHITE, BLACK, 12, 0);
+
+    uint16_t m1_x1 = 130,     m1_y1 = 50;
+    uint16_t m1_x2 = m1_x1+w, m1_y2 = m1_y1+h;
+    drawMapPreview(1, m1_x1, m1_y1, m1_x2, m1_y2, selectedMap==1);
+    lcd_ShowStr(m1_x1+20, m1_y2+5, "BORDER", WHITE, BLACK, 12, 0);
+
+    uint16_t m2_x1 = 20,      m2_y1 = 140;
+    uint16_t m2_x2 = m2_x1+w, m2_y2 = m2_y1+h;
+    drawMapPreview(2, m2_x1, m2_y1, m2_x2, m2_y2, selectedMap==2);
+    lcd_ShowStr(m2_x1+25, m2_y2+5, "PLUS", WHITE, BLACK, 12, 0);
+
+    uint16_t m3_x1 = 130,      m3_y1 = 140;
+    uint16_t m3_x2 = m3_x1+w,  m3_y2 = m3_y1+h;
+    drawMapPreview(3, m3_x1, m3_y1, m3_x2, m3_y2, selectedMap==3);
+    lcd_ShowStr(m3_x1+28, m3_y2+5, "MAZE", WHITE, BLACK, 12, 0);
+
+    lcd_Fill(50, 260, 190, 300, GREEN);
+    lcd_DrawRectangle(50, 260, 190, 300, WHITE);
+    lcd_ShowStr(95, 272, "START", WHITE, GREEN, 24, 1);
+}
+
+
+
+int mapSelectHandleTouch(void) {
+    if (!touch_IsTouched()) return -1;
+
+    uint16_t x = touch_GetX();
+    uint16_t y = touch_GetY();
+
+    // Map 0 box: (20,50)-(110,110)
+    if (x>20 && x<110 && y>50 && y<110) return 0;
+    // Map 1 box: (130,50)-(220,110)
+    if (x>130 && x<220 && y>50 && y<110) return 1;
+    // Map 2 box: (20,140)-(110,200)
+    if (x>20 && x<110 && y>140 && y<200) return 2;
+    // Map 3 box: (130,140)-(220,200)
+    if (x>130 && x<220 && y>140 && y<200) return 3;
+
+    // START button: (50,260)-(190,300)
+    if (x>50 && x<190 && y>260 && y<300)
+        return 100;
+
+    return -1;
+}
+
 

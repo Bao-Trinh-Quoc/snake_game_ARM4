@@ -11,7 +11,7 @@
 #define DIRECTION_BTN_X 50
 #define DIRECTION_BTN_Y 160
 #define DIRECTION_BTN_SIZE 40
-
+extern uint8_t selectedMap;
 void gameFSM(void);
 
 uint8_t isStartScreenTouched(void);

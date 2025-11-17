@@ -11,10 +11,10 @@
 #define BTN_IDX_DOWN    9
 #define BTN_IDX_LEFT    4
 #define BTN_IDX_RIGHT   6
-
+uint8_t selectedMap = 0;
 
 typedef enum {
-    GAME_INIT, GAME_START, GAME_PLAY, GAME_OVER, GAME_COLOR_SELECT, GAME_PAUSE
+    GAME_INIT, GAME_START, GAME_PLAY, GAME_OVER, GAME_COLOR_SELECT, GAME_PAUSE, GAME_MAP_SELECT
 } GameState;
 
 static GameState currentState = GAME_START;
@@ -127,12 +127,9 @@ void gameFSM(void) {
                 }
             }
             if (isStartScreenTouched()) {
-                currentState = GAME_PLAY;
-                lcd_Fill(0, 0, 240, 320, BLACK);
-                initializeGame();
-//                renderScreen();
-                setTimer_button(5);
-                setTimer_snake(300);
+                currentState = GAME_MAP_SELECT;
+                lcd_Fill(0,0,240,320,BLACK);
+                displayMapSelectScreen();
             }
             led7_show_score(0);
             break;
@@ -167,35 +164,28 @@ void gameFSM(void) {
                 else if (nextX >= GRID_ROWS)  nextX = 0;
                 if (nextY < 0)                nextY = GRID_COLS - 1;
                 else if (nextY >= GRID_COLS)  nextY = 0;
+                uint8_t cell = gameGrid[nextX][nextY];
 
-                if (gameGrid[nextX][nextY] == 1) {
-                    /* CẮN ĐUÔI → vào Game Over */
-					currentState = GAME_OVER;
-					gameOverScreenDrawn = 0;
-
-					/* [NEW - optional] ngắt trạng thái UI in-game cũ */
-					gameUIRendered = 0;
-
-					break;
-                } else if (gameGrid[nextX][nextY] == 2) {
+                if (cell == 1 || cell == 3) {
+                    /* 1 = thân rắn, 3 = tường → đều Game Over */
+                    currentState         = GAME_OVER;
+                    gameOverScreenDrawn  = 0;
+                    gameUIRendered       = 0;
+                    break;
+                }
+                else if (cell == 2) {
                     /* ăn mồi */
                     score++;
                     led7_show_score(score);
                     advanceSnakeHeadTo(nextX, nextY);
                     generateFruit();
                     updateScoreUI();
-                } else if (gameGrid[nextX][nextY] == 3) {
-                    currentState = GAME_OVER;
-                    gameOverScreenDrawn = 0;
-                    gameUIRendered = 0;
-                    break;
                 }
                 else {
+                    /* ô trống */
                     advanceSnakeHeadTo(nextX, nextY);
                     removeSnakeTail();
                 }
-
-//                renderScreen();
                 setTimer_snake(300);
             }
 
@@ -218,6 +208,35 @@ void gameFSM(void) {
                             currentState = GAME_PAUSE;
                         }
             break;
+
+        case GAME_MAP_SELECT:
+        {
+            int sel = mapSelectHandleTouch();
+
+            if (sel >= 0 && sel <= 3) {
+                selectedMap = sel;
+                displayMapSelectScreen();
+            }
+
+            if (sel == 100) {  // START
+                lcd_Fill(0,0,240,320,BLACK);
+                currentState = GAME_PLAY;
+
+                initializeGame();   // KHÔNG vẽ map bên trong hàm này nữa
+
+                // vẽ map theo selectedMap
+                switch (selectedMap) {
+                    case 0: /* Classic: không vẽ tường */ break;
+                    case 1: placeBorderWalls();   break;
+                    case 2: placeObstaclePlus();  break;
+                    case 3: placeMazeObstacles(); break;
+                }
+
+                setTimer_button(5);
+                setTimer_snake(300);
+            }
+        }
+        break;
 
         case GAME_PAUSE:
 //            lcd_ShowStr(80, 150, "PAUSED", YELLOW, BLACK, 24, 1);
