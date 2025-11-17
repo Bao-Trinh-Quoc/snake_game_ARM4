@@ -207,6 +207,10 @@ void gameFSM(void) {
                 setTimer_button(5);
                 handleInput();
             }
+
+            if (isPauseButtonTouched()) {
+                            currentState = GAME_PAUSE;
+                        }
             break;
 
         case GAME_PAUSE:

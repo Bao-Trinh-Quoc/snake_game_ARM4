@@ -110,6 +110,24 @@ void initializeGame(void) {
     snakeDirection = DOWN;
 }
 
+void placeObstaclePlus(void) {
+    uint8_t cx = GRID_ROWS / 2;   // tâm
+    uint8_t cy = GRID_COLS / 2;
+
+    // Dấu cộng ngang
+    for (int i = -2; i <= 2; i++) {
+        gameGrid[cx + i][cy] = 3;
+        drawCell(cx + i, cy, GRAY);
+    }
+
+    // Dấu cộng dọc
+    for (int j = -2; j <= 2; j++) {
+        gameGrid[cx][cy + j] = 3;
+        drawCell(cx, cy + j, GRAY);
+    }
+}
+
+
 /* Không dùng trong FSM hiện tại, giữ lại tham khảo */
 void advanceSnakeHead(void) {
     uint16_t oldHeadX = snake.headX;
