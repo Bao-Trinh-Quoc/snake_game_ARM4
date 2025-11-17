@@ -184,7 +184,13 @@ void gameFSM(void) {
                     advanceSnakeHeadTo(nextX, nextY);
                     generateFruit();
                     updateScoreUI();
-                } else {
+                } else if (gameGrid[nextX][nextY] == 3) {
+                    currentState = GAME_OVER;
+                    gameOverScreenDrawn = 0;
+                    gameUIRendered = 0;
+                    break;
+                }
+                else {
                     advanceSnakeHeadTo(nextX, nextY);
                     removeSnakeTail();
                 }

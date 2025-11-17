@@ -82,10 +82,11 @@ void initializeGame(void) {
     drawPlayfieldFrame();
 
     // Khởi tạo rắn (2 ô)
-    snake.headX = GRID_ROWS / 2;
-    snake.headY = GRID_COLS / 2;
-    snake.tailX = GRID_ROWS / 2;
-    snake.tailY = GRID_COLS / 2 - 1;
+    snake.headX = 1;
+    snake.headY = 0;
+    snake.tailX = 0;
+    snake.tailY = 1;
+    snakeDirection = RIGHT;
 
     gameGrid[snake.tailX][snake.tailY] = 1;
     gameGrid[snake.headX][snake.headY] = 1;
@@ -97,7 +98,7 @@ void initializeGame(void) {
 
     // Vẽ 2 ô rắn ban đầu (lọt trong vùng PLAY, không đè viền)
     {
-        uint16_t snakeColor = (snake.color ? snake.color : BLUE);
+        uint16_t snakeColor = (snake.color ? snake.color : GREEN);
         drawCell(snake.tailX, snake.tailY, snakeColor);
         drawCell(snake.headX, snake.headY, snakeColor);
     }
@@ -108,22 +109,23 @@ void initializeGame(void) {
 
     // Hướng
     snakeDirection = DOWN;
+    placeObstaclePlus();
 }
 
 void placeObstaclePlus(void) {
-    uint8_t cx = GRID_ROWS / 2;   // tâm
-    uint8_t cy = GRID_COLS / 2;
+    uint8_t cx = GRID_ROWS / 2 - 1;   // tâm
+    uint8_t cy = GRID_COLS / 2 - 1;
 
     // Dấu cộng ngang
-    for (int i = -2; i <= 2; i++) {
+    for (int i = -4; i <= 4; i++) {
         gameGrid[cx + i][cy] = 3;
-        drawCell(cx + i, cy, GRAY);
+        drawCell(cx + i, cy, GBLUE);
     }
 
     // Dấu cộng dọc
-    for (int j = -2; j <= 2; j++) {
+    for (int j = -4; j <= 4; j++) {
         gameGrid[cx][cy + j] = 3;
-        drawCell(cx, cy + j, GRAY);
+        drawCell(cx, cy + j, GBLUE);
     }
 }
 
@@ -150,7 +152,7 @@ void advanceSnakeHead(void) {
 
     gameGrid[snake.headX][snake.headY] = 1;
 
-    drawCell(snake.headX, snake.headY, (snake.color ? snake.color : BLUE));
+    drawCell(snake.headX, snake.headY, (snake.color ? snake.color : GREEN));
 }
 
 void advanceSnakeHeadTo(int16_t nx, int16_t ny) {
@@ -165,7 +167,7 @@ void advanceSnakeHeadTo(int16_t nx, int16_t ny) {
 
     gameGrid[snake.headX][snake.headY] = 1;
 
-    drawCell(snake.headX, snake.headY, (snake.color ? snake.color : BLUE));
+    drawCell(snake.headX, snake.headY, (snake.color ? snake.color : GREEN));
 }
 
 void removeSnakeTail(void) {
