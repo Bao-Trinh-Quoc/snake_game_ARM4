@@ -67,11 +67,14 @@ typedef struct
 #define BROWN 			 0XBC40
 #define BRRED 			 0XFC07
 #define GRAY  			 0X8430
+#define ORANGE 			 0xFD20
+#define GREEN_SNAKE 0xAFE5   // xanh lá nhẹ
+#define PINK_SNAKE  0xF99F   // hồng baby
 
 #define DARKBLUE      	 0X01CF
 #define LIGHTBLUE      	 0X7D7C
 #define GRAYBLUE       	 0X5458
-
+#define DARKGRAY 		 0xA9A9
 
 #define LIGHTGREEN     	 0X841F
 #define LIGHTGRAY        0XEF5B

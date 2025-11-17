@@ -5,12 +5,13 @@
 #include "lcd.h"
 #include "touch.h"
 #include "game_display.h"
+#include "button.h"
 
 
 #define DIRECTION_BTN_X 50
 #define DIRECTION_BTN_Y 160
 #define DIRECTION_BTN_SIZE 40
-
+extern uint8_t selectedMap;
 void gameFSM(void);
 
 uint8_t isStartScreenTouched(void);
@@ -26,6 +27,13 @@ uint8_t isButtonDown(void);
 uint8_t isButtonLeft(void);
 
 uint8_t isButtonRight(void);
+uint8_t isPhyButtonUpEdge(void);  //new
+uint8_t isPhyButtonDownEdge(void);
+uint8_t isPhyButtonLeftEdge(void);
+uint8_t isPhyButtonRightEdge(void);
+uint8_t isPhyStartEdge(void);
+uint8_t isPhyPauseEdge(void);
+
 
 uint8_t isHomeButtonTouched(void);
 uint8_t isPauseButtonTouched(void);
