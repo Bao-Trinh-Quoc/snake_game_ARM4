@@ -12,6 +12,7 @@
 #include "lcd.h"
 #include "touch.h"
 #include "game_control.h"
+
 #define SCREEN_X 40
 #define SCREEN_Y 35
 #define SCREEN_SIZE 160
@@ -32,6 +33,7 @@ enum Direction {
     UP, DOWN, LEFT, RIGHT
 };
 
+void displayPauseScreen(void);
 extern enum Direction snakeDirection;
 
 void renderScreen();

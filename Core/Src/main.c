@@ -147,6 +147,8 @@ int main(void)
 //	  }
 
 //	 SNAKE
+	  // button
+	  button_Scan();
 	  //scan touch screen
 	  touch_Scan();
 	  if (flag_timer2 == 1) {

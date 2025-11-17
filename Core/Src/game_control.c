@@ -7,6 +7,13 @@
 
 #include "game_control.h"
 
+#define BTN_IDX_UP      1 //new
+#define BTN_IDX_DOWN    9
+#define BTN_IDX_LEFT    4
+#define BTN_IDX_RIGHT   6
+#define BTN_IDX_START   5
+#define BTN_PAUSE  		15
+
 typedef enum {
     GAME_INIT, GAME_START, GAME_PLAY, GAME_OVER, GAME_COLOR_SELECT, GAME_PAUSE
 } GameState;
@@ -197,20 +204,26 @@ void gameFSM(void) {
                 break;
             }
 
-            if (isPauseButtonTouched()) {
-                currentState = GAME_PAUSE;
-                break;
-            }
-
             if (button_read_flag) {
                 setTimer_button(5);
                 handleInput();
             }
+            if(isPhyStartEdge()){
+				currentState = GAME_START;
+				initializeGame();
+				renderScreen();
+				score = 0;
+			}
+			if (isPhyPauseEdge() || isPauseButtonTouched()) {
+				currentState = GAME_PAUSE;
+				displayPauseScreen();
+			}
             break;
 
         case GAME_PAUSE:
             lcd_ShowStr(80, 150, "PAUSED", YELLOW, BLACK, 24, 1);
 
+            // lcd on screen button
             if (isPauseButtonTouched()) {
                 currentState = GAME_PLAY;
             }
@@ -335,3 +348,10 @@ uint8_t isStartScreenTouched(void) {
     }
     return 0;
 }
+
+uint8_t isPhyButtonUpEdge(void)    { return button_pressed_edge(BTN_IDX_UP);    }
+uint8_t isPhyButtonDownEdge(void)  { return button_pressed_edge(BTN_IDX_DOWN);  }
+uint8_t isPhyButtonLeftEdge(void)  { return button_pressed_edge(BTN_IDX_LEFT);  }
+uint8_t isPhyButtonRightEdge(void) { return button_pressed_edge(BTN_IDX_RIGHT); }
+uint8_t isPhyStartEdge(void)       { return button_pressed_edge(BTN_IDX_START);}
+uint8_t isPhyPauseEdge(void)       { return button_pressed_edge(BTN_PAUSE);}

@@ -5,12 +5,23 @@
  *      Author: HaHuyen
  */
 #include "button.h"
+#define DEBOUNCE_TICKS 3
 
 uint16_t button_count[16];
 uint16_t spi_button = 0x0000;
 
 void button_init(){
 	HAL_GPIO_WritePin(BTN_LOAD_GPIO_Port, BTN_LOAD_Pin, 1);
+}
+
+uint8_t button_pressed_edge(uint8_t idx){ //new
+    static uint8_t latched[16] = {0};
+    if (button_count[idx] >= DEBOUNCE_TICKS){
+        if (!latched[idx]) { latched[idx] = 1; return 1; }
+    } else {
+        latched[idx] = 0;
+    }
+    return 0;
 }
 
 void button_Scan(){
