@@ -6,12 +6,24 @@
  */
 
 #include "game_control.h"
+#include <stdlib.h>   // [NEW] dùng rand() cho điểm bonus
 
 #define BTN_IDX_UP      1 //new
 #define BTN_IDX_DOWN    9
 #define BTN_IDX_LEFT    4
 #define BTN_IDX_RIGHT   6
 
+/* Đồng bộ với game_display.c */
+#define CELL_EMPTY      0
+#define CELL_SNAKE      1
+#define CELL_FRUIT      2
+#define CELL_OBSTACLE   3
+#define CELL_BONUS      4   // [NEW] ô thức ăn bonus
+
+/* Prototype các hàm bonus được định nghĩa trong game_display.c */
+extern void generateBonusFruit(void);
+extern void bonusFruitTick(void);
+extern void bonusFruitOnEaten(void);
 
 typedef enum {
     GAME_INIT, GAME_START, GAME_PLAY, GAME_OVER, GAME_COLOR_SELECT, GAME_PAUSE
@@ -152,6 +164,9 @@ void gameFSM(void) {
             if (snake_move_flag) {
                 HAL_GPIO_TogglePin(DEBUG_LED_GPIO_Port, DEBUG_LED_Pin);
 
+                /* [NEW] Mỗi bước rắn di chuyển thì cập nhật timer bonus (5s + nhấp nháy) */
+                bonusFruitTick();
+
                 int16_t nextX = (int16_t)snake.headX;
                 int16_t nextY = (int16_t)snake.headY;
 
@@ -168,7 +183,9 @@ void gameFSM(void) {
                 if (nextY < 0)                nextY = GRID_COLS - 1;
                 else if (nextY >= GRID_COLS)  nextY = 0;
 
-                if (gameGrid[nextX][nextY] == 1) {
+                uint8_t cell = gameGrid[nextX][nextY];
+
+                if (cell == CELL_SNAKE) {
                     /* CẮN ĐUÔI → vào Game Over */
 					currentState = GAME_OVER;
 					gameOverScreenDrawn = 0;
@@ -177,12 +194,29 @@ void gameFSM(void) {
 					gameUIRendered = 0;
 
 					break;
-                } else if (gameGrid[nextX][nextY] == 2) {
-                    /* ăn mồi */
+                } else if (cell == CELL_FRUIT) {
+                    /* ăn mồi thường */
                     score++;
                     led7_show_score(score);
                     advanceSnakeHeadTo(nextX, nextY);
                     generateFruit();
+                    updateScoreUI();
+
+                    /* [NEW] Nếu score > 5 thì sinh thêm bonus food (nếu chưa có)
+                     * Bonus sẽ tự sống ~5s và nhấp nháy rồi biến mất.
+                     */
+                    if (score > 5) {
+                        generateBonusFruit();
+                    }
+
+                } else if (cell == CELL_BONUS) {
+                    /* [NEW] ăn mồi bonus: +2 hoặc +3 điểm */
+                    uint8_t bonusPoint = 2 + (rand() % 2);   // 2–3 điểm
+                    score += bonusPoint;
+                    led7_show_score(score);
+
+                    advanceSnakeHeadTo(nextX, nextY);        // rắn chiếm ô bonus
+                    bonusFruitOnEaten();                     // tắt trạng thái bonus
                     updateScoreUI();
                 } else {
                     advanceSnakeHeadTo(nextX, nextY);
@@ -209,8 +243,8 @@ void gameFSM(void) {
             }
 
             if (isPauseButtonTouched()) {
-                            currentState = GAME_PAUSE;
-                        }
+                currentState = GAME_PAUSE;
+            }
             break;
 
         case GAME_PAUSE:
@@ -239,8 +273,7 @@ void gameFSM(void) {
 
             if (isRestartTouched()) {
                 currentState     = GAME_INIT;  /* theo yêu cầu: RESTART → về INIT */
-                startInputLock = 1;   // [NEW] chống dính START khi vừa quay lại GameStart
-                startScreenDrawn = 0; // (giữ nguyên dòng này nếu đã có)
+                startInputLock   = 1;   // [NEW] chống dính START khi vừa quay lại GameStart
                 startScreenDrawn = 0;
                 gameUIRendered   = 0;
                 lastScore        = -1;
@@ -346,4 +379,3 @@ uint8_t isPhyButtonUpEdge(void)    { return button_pressed_edge(BTN_IDX_UP);    
 uint8_t isPhyButtonDownEdge(void)  { return button_pressed_edge(BTN_IDX_DOWN);  }
 uint8_t isPhyButtonLeftEdge(void)  { return button_pressed_edge(BTN_IDX_LEFT);  }
 uint8_t isPhyButtonRightEdge(void) { return button_pressed_edge(BTN_IDX_RIGHT); }
-

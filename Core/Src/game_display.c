@@ -7,10 +7,37 @@
 #include <stdlib.h>
 #include <string.h>
 
+/* ====== ĐỊNH NGHĨA KIỂU Ô TRONG GRID ====== */
+#define CELL_EMPTY      0
+#define CELL_SNAKE      1
+#define CELL_FRUIT      2
+#define CELL_OBSTACLE   3
+#define CELL_BONUS      4   // [NEW] ô thức ăn bonus
+
 struct Fruit {
     uint16_t x, y;
     uint16_t color;
 } fruit;
+
+/* ====== BONUS FRUIT ====== */
+typedef struct {
+    uint16_t x, y;
+    uint8_t  active;     // đang tồn tại trên map
+    uint8_t  visible;    // đang vẽ (1) hay đang ẩn để nhấp nháy (0)
+    uint16_t lifetime;   // còn bao nhiêu bước di chuyển rắn
+} BonusFruit;
+
+static BonusFruit bonusFruit;
+
+/* Tham số cho bonus:
+ * - BONUS_LIFETIME_STEPS: số lần rắn di chuyển ~ 5s
+ *   (vì setTimer_snake(300ms) => ~ 16–17 bước ≈ 5s)
+ * - BONUS_BLINK_START: bắt đầu nhấp nháy ở đoạn cuối
+ */
+#define BONUS_COLOR           YELLOW
+#define BONUS_LIFETIME_STEPS  17
+#define BONUS_BLINK_START      7
+/* ============================ */
 
 struct Snake snake;
 enum Direction snakeDirection = DOWN;
@@ -59,13 +86,91 @@ void renderScreen(void) {
     // intentionally empty — vẽ incremental ở advance/remove/generate
 }
 
+/* ================= BONUS FRUIT API =================
+ * Các hàm này sẽ được gọi từ game_control.c
+ *   - generateBonusFruit(): tạo 1 bonus nếu chưa có
+ *   - bonusFruitTick(): mỗi bước rắn di chuyển gọi 1 lần để countdown và nhấp nháy
+ *   - bonusFruitOnEaten(): gọi khi rắn ăn xong bonus
+ * ================================================== */
+
+/* Tạo 1 bonus fruit ở ô trống bất kỳ.
+ * Chỉ tạo nếu hiện tại chưa có bonusFruit.active.
+ */
+void generateBonusFruit(void) {
+    if (bonusFruit.active) return;  // đã có bonus, bỏ qua
+
+    uint8_t x, y;
+    uint8_t attempts = 50;          // tránh vòng lặp vô hạn
+
+    do {
+        x = rand() % GRID_ROWS;
+        y = rand() % GRID_COLS;
+    } while (gameGrid[x][y] != CELL_EMPTY && --attempts);
+
+    // Không tìm được ô trống (map đầy) thì bỏ
+    if (gameGrid[x][y] != CELL_EMPTY) return;
+
+    bonusFruit.x        = x;
+    bonusFruit.y        = y;
+    bonusFruit.active   = 1;
+    bonusFruit.visible  = 1;
+    bonusFruit.lifetime = BONUS_LIFETIME_STEPS;
+
+    gameGrid[x][y] = CELL_BONUS;
+    drawCell(x, y, BONUS_COLOR);
+}
+
+/* Mỗi lần rắn di chuyển (snake_move_flag), gọi hàm này để:
+ *  - Giảm lifetime
+ *  - Đoạn cuối thì nhấp nháy (ẩn/hiện)
+ *  - Hết thời gian thì xóa bonus khỏi map
+ */
+void bonusFruitTick(void) {
+    if (!bonusFruit.active) return;
+    if (bonusFruit.lifetime == 0)   return;
+
+    bonusFruit.lifetime--;
+
+    // Hết thời gian => xóa ô bonus khỏi grid, trả lại nền đen
+    if (bonusFruit.lifetime == 0) {
+        gameGrid[bonusFruit.x][bonusFruit.y] = CELL_EMPTY;
+        drawCell(bonusFruit.x, bonusFruit.y, BLACK);
+        bonusFruit.active  = 0;
+        bonusFruit.visible = 0;
+        return;
+    }
+
+    // Giai đoạn cuối thì nhấp nháy
+    if (bonusFruit.lifetime <= BONUS_BLINK_START) {
+        bonusFruit.visible = !bonusFruit.visible;
+        if (bonusFruit.visible) {
+            drawCell(bonusFruit.x, bonusFruit.y, BONUS_COLOR);
+        } else {
+            drawCell(bonusFruit.x, bonusFruit.y, BLACK);
+        }
+    }
+}
+
+/* Khi rắn ăn vào ô bonus, game_control sẽ:
+ *  - cộng điểm
+ *  - advanceSnakeHeadTo(...) để vẽ rắn vào ô đó
+ * Sau đó gọi bonusFruitOnEaten() để tắt trạng thái bonus mà KHÔNG xóa ô (rắn đã vẽ).
+ */
+void bonusFruitOnEaten(void) {
+    if (!bonusFruit.active) return;
+    bonusFruit.active   = 0;
+    bonusFruit.visible  = 0;
+    bonusFruit.lifetime = 0;
+}
+/* ================== Hết phần BONUS ================== */
+
 void generateFruit(void) {
     do {
         fruit.x = rand() % GRID_ROWS;
         fruit.y = rand() % GRID_COLS;
-    } while (gameGrid[fruit.x][fruit.y] != 0);
+    } while (gameGrid[fruit.x][fruit.y] != CELL_EMPTY);
 
-    gameGrid[fruit.x][fruit.y] = 2;
+    gameGrid[fruit.x][fruit.y] = CELL_FRUIT;
     drawCell(fruit.x, fruit.y, RED);  // vẽ ngay mồi
 }
 
@@ -74,6 +179,11 @@ void initializeGame(void) {
     for (uint8_t i = 0; i < GRID_ROWS; ++i)
         for (uint8_t j = 0; j < GRID_COLS; ++j)
             prevX[i][j] = prevY[i][j] = -1;
+
+    // Reset bonus
+    bonusFruit.active   = 0;
+    bonusFruit.visible  = 0;
+    bonusFruit.lifetime = 0;
 
     // NỀN vùng chơi: đen (chỉ tô vùng PLAY, không đụng viền trắng)
     lcd_Fill(PLAY_X, PLAY_Y, PLAY_X + PLAY_SIZE, PLAY_Y + PLAY_SIZE, BLACK);
@@ -87,8 +197,8 @@ void initializeGame(void) {
     snake.tailX = GRID_ROWS / 2;
     snake.tailY = GRID_COLS / 2 - 1;
 
-    gameGrid[snake.tailX][snake.tailY] = 1;
-    gameGrid[snake.headX][snake.headY] = 1;
+    gameGrid[snake.tailX][snake.tailY] = CELL_SNAKE;
+    gameGrid[snake.headX][snake.headY] = CELL_SNAKE;
 
     prevX[snake.headX][snake.headY] = snake.tailX;
     prevY[snake.headX][snake.headY] = snake.tailY;
@@ -102,7 +212,7 @@ void initializeGame(void) {
         drawCell(snake.headX, snake.headY, snakeColor);
     }
 
-    // Mồi
+    // Mồi thường
     fruit.color = RED;
     generateFruit();
 
@@ -116,13 +226,13 @@ void placeObstaclePlus(void) {
 
     // Dấu cộng ngang
     for (int i = -2; i <= 2; i++) {
-        gameGrid[cx + i][cy] = 3;
+        gameGrid[cx + i][cy] = CELL_OBSTACLE;
         drawCell(cx + i, cy, GRAY);
     }
 
     // Dấu cộng dọc
     for (int j = -2; j <= 2; j++) {
-        gameGrid[cx][cy + j] = 3;
+        gameGrid[cx][cy + j] = CELL_OBSTACLE;
         drawCell(cx, cy + j, GRAY);
     }
 }
@@ -148,7 +258,7 @@ void advanceSnakeHead(void) {
     prevX[snake.headX][snake.headY] = oldHeadX;
     prevY[snake.headX][snake.headY] = oldHeadY;
 
-    gameGrid[snake.headX][snake.headY] = 1;
+    gameGrid[snake.headX][snake.headY] = CELL_SNAKE;
 
     drawCell(snake.headX, snake.headY, (snake.color ? snake.color : BLUE));
 }
@@ -163,7 +273,7 @@ void advanceSnakeHeadTo(int16_t nx, int16_t ny) {
     prevX[snake.headX][snake.headY] = oldHeadX;
     prevY[snake.headX][snake.headY] = oldHeadY;
 
-    gameGrid[snake.headX][snake.headY] = 1;
+    gameGrid[snake.headX][snake.headY] = CELL_SNAKE;
 
     drawCell(snake.headX, snake.headY, (snake.color ? snake.color : BLUE));
 }
@@ -186,7 +296,7 @@ void removeSnakeTail(void) {
         if (nextTailX != -1) break;
     }
 
-    gameGrid[curTailX][curTailY] = 0;
+    gameGrid[curTailX][curTailY] = CELL_EMPTY;
     drawCell(curTailX, curTailY, BLACK);  // trả lại nền đen (không đụng viền)
 
     prevX[curTailX][curTailY] = -1;
@@ -312,4 +422,3 @@ uint16_t startScreenHandleColorTouch(void) {
     }
     return 0;
 }
-
