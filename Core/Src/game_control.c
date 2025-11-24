@@ -7,6 +7,7 @@
 
 #include "game_control.h"
 #include "led7seg_app.h"
+#include "game_display.h"
 
 #define BTN_IDX_UP      1 //new
 #define BTN_IDX_DOWN    9
@@ -15,18 +16,22 @@
 
 #define DARKGRAY 0xA9A9A9
 
+#define PLAY_X (SCREEN_X + 1)
+#define PLAY_Y (SCREEN_Y + 1)
+#define PLAY_W (SCREEN_W - 2)
+#define PLAY_H (SCREEN_H - 2)
+
 uint8_t selectedMap = 0;
 
-typedef enum {
-    GAME_INIT, GAME_START, GAME_PLAY, GAME_OVER, GAME_COLOR_SELECT, GAME_PAUSE, GAME_MAP_SELECT
-} GameState;
 
-static GameState currentState = GAME_START;
+GameState currentState = GAME_START;
 
 typedef struct {
     uint16_t xStart, yStart, xEnd, yEnd;
     uint8_t isPressed;
 } ControlButton;
+Fruit fruit;
+Bomb bomb;
 
 static ControlButton controlButtons[4];
 static uint16_t score = 0;
@@ -55,7 +60,7 @@ static void updateScoreUI(void) {
     lcd_Fill(SCORE_NUM_X, SCORE_NUM_Y,
              SCORE_NUM_X + SCORE_NUM_W,
              SCORE_NUM_Y + SCORE_NUM_H,
-             WHITE);
+             DARKBLUE);
     lcd_ShowIntNum(SCORE_NUM_X, SCORE_NUM_Y, score, 3, BLACK, WHITE, 16);
     lastScore = score;
 }
@@ -77,7 +82,7 @@ static uint8_t gameOverScreenDrawn = 0;
 #define GO_BTN_X2    (GO_BTN_X1 + GO_BTN_W)
 #define GO_BTN_Y2    (GO_BTN_Y1 + GO_BTN_H)
 
-static void displayGameOverScreen(void) {
+void displayGameOverScreen(void) {
     /* [NEW] clear full screen to avoid overlay */
     lcd_Fill(0, 0, 240, 320, BLACK);
 
@@ -142,6 +147,7 @@ void gameFSM(void) {
             }
             if (isStartScreenTouched()) {
                 currentState = GAME_MAP_SELECT;
+                at24c_WriteOneByte(0x0000, currentState);
                 lcd_Fill(0,0,240,320,BLACK);
                 displayMapSelectScreen();
             }
@@ -183,6 +189,7 @@ void gameFSM(void) {
                 if (cell == 1 || cell == 3 || cell == 4) {
                     /* 1 = thân rắn, 3 = tường, 4 = bomb → Game Over */
                     currentState         = GAME_OVER;
+                    at24c_WriteOneByte(0x0000, currentState);
                     gameOverScreenDrawn  = 0;
                     gameUIRendered       = 0;
                     break;
@@ -208,6 +215,7 @@ void gameFSM(void) {
 
             if (isHomeButtonTouched()) {
                 currentState = GAME_INIT;
+                at24c_WriteOneByte(0x0000, currentState);
                 startScreenDrawn = 0;
                 score = 0;
                 lastScore = -1;
@@ -238,7 +246,7 @@ void gameFSM(void) {
             if (sel == 100) {  // START
                 lcd_Fill(0,0,240,320,BLACK);
                 currentState = GAME_PLAY;
-
+                at24c_WriteOneByte(0x0000, currentState);
                 initializeGame();   // KHÔNG vẽ map bên trong hàm này nữa
 
                 // vẽ map theo selectedMap
@@ -256,12 +264,15 @@ void gameFSM(void) {
         break;
 
         case GAME_PAUSE:
-//            lcd_ShowStr(80, 150, "PAUSED", YELLOW, BLACK, 24, 1);
-
-            // lcd on screen button and physical button
+            // Nhấn PAUSE lần nữa -> tiếp tục chơi
             if (isPauseButtonTouched()) {
                 currentState = GAME_PLAY;
+                // Bật lại timer để rắn và button hoạt động
+                setTimer_button(5);
+                setTimer_snake(300);
             }
+
+            // Nhấn HOME -> về INIT, xoá màn, reset
             if (isHomeButtonTouched()) {
                 currentState     = GAME_INIT;
                 startScreenDrawn = 0;
@@ -271,6 +282,7 @@ void gameFSM(void) {
                 lcd_Fill(0, 0, 240, 320, BLACK);
             }
             break;
+
 
         case GAME_OVER:
             /* vẽ overlay 1 lần, đợi người chơi bấm RESTART */
@@ -294,16 +306,97 @@ void gameFSM(void) {
 
 }
 
-void initializeControlButtons(void) {
-    controlButtons[0] = (ControlButton){ .xStart = DIRECTION_BTN_X + DIRECTION_BTN_SIZE + 10, .yStart = DIRECTION_BTN_Y + 10 + DIRECTION_BTN_SIZE, .xEnd = DIRECTION_BTN_X + 2 * DIRECTION_BTN_SIZE + 10, .yEnd = DIRECTION_BTN_Y + DIRECTION_BTN_SIZE*2 + 10 , .isPressed = 0};
-    controlButtons[1] = (ControlButton){ .xStart = DIRECTION_BTN_X + DIRECTION_BTN_SIZE + 10, .yStart = DIRECTION_BTN_Y + 2 * DIRECTION_BTN_SIZE + 20, .xEnd = DIRECTION_BTN_X + 2 * DIRECTION_BTN_SIZE + 10, .yEnd = DIRECTION_BTN_Y + 3 * DIRECTION_BTN_SIZE + 20, .isPressed = 0};
-    controlButtons[2] = (ControlButton){ .xStart = DIRECTION_BTN_X, .yStart = DIRECTION_BTN_Y + 2 * DIRECTION_BTN_SIZE + 20, .xEnd = DIRECTION_BTN_X + DIRECTION_BTN_SIZE, .yEnd = DIRECTION_BTN_Y + 3 * DIRECTION_BTN_SIZE + 20, .isPressed = 0};
-    controlButtons[3] = (ControlButton){ .xStart = DIRECTION_BTN_X + 2 * DIRECTION_BTN_SIZE + 20, .yStart = DIRECTION_BTN_Y + 2 * DIRECTION_BTN_SIZE + 20, .xEnd = DIRECTION_BTN_X + 3 * DIRECTION_BTN_SIZE + 20, .yEnd = DIRECTION_BTN_Y + 3 * DIRECTION_BTN_SIZE + 20, .isPressed = 0};
+static void drawLineH(int x1, int x2, int y, uint16_t color)
+{
+    if (x2 < x1) { int t=x1; x1=x2; x2=t; }
+    lcd_Fill(x1, y, x2, y, color);   // fill đúng 1 dòng
+}
 
+
+void initializeControlButtons(void) {
+
+    int baseX = DIRECTION_BTN_X + 15;
+    int baseY = DIRECTION_BTN_Y + 70;
+
+    int S = DIRECTION_BTN_SIZE;       // SIZE thực tế của nút
+    int GAP = 10;
+
+    // UP
+    controlButtons[0] = (ControlButton){
+        .xStart = baseX + S + GAP,
+        .yStart = baseY,
+        .xEnd   = baseX + 2*S + GAP,
+        .yEnd   = baseY + S
+    };
+
+    // DOWN
+    controlButtons[1] = (ControlButton){
+        .xStart = baseX + S + GAP,
+        .yStart = baseY + S + GAP,
+        .xEnd   = baseX + 2*S + GAP,
+        .yEnd   = baseY + 2*S + GAP
+    };
+
+    // LEFT
+    controlButtons[2] = (ControlButton){
+        .xStart = baseX,
+        .yStart = baseY + S + GAP,
+        .xEnd   = baseX + S,
+        .yEnd   = baseY + 2*S + GAP
+    };
+
+    // RIGHT
+    controlButtons[3] = (ControlButton){
+        .xStart = baseX + 2*S + 2*GAP,
+        .yStart = baseY + S + GAP,
+        .xEnd   = baseX + 3*S + 2*GAP,
+        .yEnd   = baseY + 2*S + GAP
+    };
+
+    // ===== VẼ NÚT + TAM GIÁC ĐẶC =====
+    // ===== VẼ 4 NÚT + TAM GIÁC ĐẶC =====
     for (int i = 0; i < 4; i++) {
-        lcd_Fill(controlButtons[i].xStart, controlButtons[i].yStart,
-                 controlButtons[i].xEnd,   controlButtons[i].yEnd, WHITE);
+
+        int cx = controlButtons[i].xStart + (S/2);
+        int cy = controlButtons[i].yStart + (S/2);
+        int r  = S/2;
+
+        // 1) Vẽ nút tròn 2 lớp (NỀN)
+        lcd_FillCircle(cx, cy, r, WHITE);
+        lcd_FillCircle(cx, cy, r-3, LIGHTGRAY);
+
+        // 2) Tính tam giác
+        int tri = r - 6;   // giảm từ r-6 hoặc r-8 → r-12 để nhỏ gọn
+
+        int x1, y1, x2, y2, x3, y3;
+
+        if (i == 0) {          // UP
+            x1 = cx;           y1 = cy - tri;
+            x2 = cx - tri;     y2 = cy + tri/2;
+            x3 = cx + tri;     y3 = cy + tri/2;
+        }
+        else if (i == 1) {     // DOWN
+            x1 = cx;           y1 = cy + tri;
+            x2 = cx - tri;     y2 = cy - tri/2;
+            x3 = cx + tri;     y3 = cy - tri/2;
+        }
+        else if (i == 2) {     // LEFT
+            x1 = cx - tri;     y1 = cy;
+            x2 = cx + tri/2;   y2 = cy - tri;
+            x3 = cx + tri/2;   y3 = cy + tri;
+        }
+        else {                 // RIGHT
+            x1 = cx + tri;     y1 = cy;
+            x2 = cx - tri/2;   y2 = cy - tri;
+            x3 = cx - tri/2;   y3 = cy + tri;
+        }
+
+        // Vẽ tam giác rỗng – luôn hiển thị
+        lcd_DrawLine(x1, y1, x2, y2, BLACK);
+        lcd_DrawLine(x2, y2, x3, y3, BLACK);
+        lcd_DrawLine(x3, y3, x1, y1, BLACK);
     }
+
 }
 
 uint8_t isHomeButtonTouched(void) {
@@ -319,8 +412,18 @@ uint8_t isPauseButtonTouched(void) {
 }
 
 void initializeButtons(void) {
+	lcd_Fill(0, 0, 240, PLAY_Y, CYAN);
+
+	// Vùng UI dưới
+	lcd_Fill(0, PLAY_Y + PLAY_H, 240, 320, CYAN);
+
+	// Vùng UI trái
+	lcd_Fill(0, PLAY_Y, PLAY_X, PLAY_Y + PLAY_H, CYAN);
+
+	// Vùng UI phải
+	lcd_Fill(PLAY_X + PLAY_W, PLAY_Y, 240, PLAY_Y + PLAY_H, CYAN);
     initializeControlButtons();
-    lcd_Fill(0, 0, 240, 30, LIGHTBLUE); // Thanh màu xanh nhạt ở đầu
+    lcd_Fill(0, 0, 240, 30, DARKBLUE); // Thanh màu xanh nhạt ở đầu
 
     // --- Nút HOME ---
     lcd_Fill(5, 2, 60, 25, WHITE);                      // Nền trắng cho nút
@@ -328,8 +431,9 @@ void initializeButtons(void) {
     lcd_ShowStr(15, 7, "HOME", BLACK, WHITE, 16, 1);   // Chữ giữa nút, font đậm
 
     // --- SCORE hiển thị ở giữa ---
-    lcd_ShowStr(70, 7, "SCORE:", WHITE, LIGHTBLUE, 16, 1);  // Chữ trắng
-    lcd_ShowIntNum(120, 7, score, 3, YELLOW, LIGHTBLUE, 16); // Điểm màu vàng
+    lcd_ShowStr(70, 7, "SCORE:", WHITE, DARKBLUE, 16, 1);
+    lcd_ShowIntNum(120, 7, score, 3, YELLOW, DARKBLUE, 16);
+
 
     // --- Nút PAUSE ---
     lcd_Fill(175, 2, 235,25, WHITE);                   // Nền trắng
@@ -392,7 +496,7 @@ uint8_t isStartScreenTouched(void) {
     uint16_t btnTop = shapeTop + shapeBtnSize + 20;
 
     uint16_t btnX1 = SCREEN_X + 35;
-    uint16_t btnX2 = SCREEN_X + SCREEN_SIZE - 35;
+    uint16_t btnX2 = SCREEN_X + SCREEN_W - 35;
     uint16_t btnY1 = btnTop;
     uint16_t btnY2 = btnTop + 45;
 
@@ -410,4 +514,91 @@ uint8_t isPhyButtonUpEdge(void)    { return button_pressed_edge(BTN_IDX_UP);    
 uint8_t isPhyButtonDownEdge(void)  { return button_pressed_edge(BTN_IDX_DOWN);  }
 uint8_t isPhyButtonLeftEdge(void)  { return button_pressed_edge(BTN_IDX_LEFT);  }
 uint8_t isPhyButtonRightEdge(void) { return button_pressed_edge(BTN_IDX_RIGHT); }
+void saveGameState() {
+    at24c_WriteOneByte(0x0000, 0xA5);
 
+    at24c_WriteOneByte(0x0001, selectedMap);
+
+    at24c_WriteOneByte(0x0002, (score >> 8));
+    at24c_WriteOneByte(0x0003, (score & 0xFF));
+
+    at24c_WriteOneByte(0x0004, (snake.color >> 8));
+    at24c_WriteOneByte(0x0005, (snake.color & 0xFF));
+
+    at24c_WriteOneByte(0x0006, snake.headX);
+    at24c_WriteOneByte(0x0007, snake.headY);
+    at24c_WriteOneByte(0x0008, snake.tailX);
+    at24c_WriteOneByte(0x0009, snake.tailY);
+    at24c_WriteOneByte(0x000A, snakeDirection);
+
+    // Fruit
+    at24c_WriteOneByte(0x000B, fruit.x);
+    at24c_WriteOneByte(0x000C, fruit.y);
+    at24c_WriteOneByte(0x000D, fruit.type);
+    at24c_WriteOneByte(0x0015, fruit.color >> 8);
+    at24c_WriteOneByte(0x0016, fruit.color & 0xFF);
+
+    // Bomb
+    at24c_WriteOneByte(0x000E, bomb.active);
+    at24c_WriteOneByte(0x000F, bomb.x);
+    at24c_WriteOneByte(0x0010, bomb.y);
+    at24c_WriteOneByte(0x0011, (bomb.ticks >> 8));
+    at24c_WriteOneByte(0x0012, (bomb.ticks & 0xFF));
+
+    at24c_WriteOneByte(0x0013, (highscore >> 8));
+    at24c_WriteOneByte(0x0014, (highscore & 0xFF));
+
+    for (int x = 0; x < GRID_ROWS; x++)
+        for (int y = 0; y < GRID_COLS; y++)
+            at24c_WriteOneByte(0x20 + x*GRID_COLS + y, gameGrid[x][y]);
+}
+
+void loadGameState() {
+    if (at24c_ReadOneByte(0x0000) != 0xA5) return;
+
+    selectedMap = at24c_ReadOneByte(0x0001);
+
+    score = (at24c_ReadOneByte(0x0002) << 8) |
+             at24c_ReadOneByte(0x0003);
+
+    snake.color = (at24c_ReadOneByte(0x0004) << 8) |
+                   at24c_ReadOneByte(0x0005);
+
+    snake.headX = at24c_ReadOneByte(0x0006);
+    snake.headY = at24c_ReadOneByte(0x0007);
+    snake.tailX = at24c_ReadOneByte(0x0008);
+    snake.tailY = at24c_ReadOneByte(0x0009);
+    snakeDirection = at24c_ReadOneByte(0x000A);
+
+    // Fruit
+    fruit.x    = at24c_ReadOneByte(0x000B);
+    fruit.y    = at24c_ReadOneByte(0x000C);
+    fruit.type = at24c_ReadOneByte(0x000D);
+    fruit.color = ((at24c_ReadOneByte(0x0015) << 8) |
+                    at24c_ReadOneByte(0x0016));
+
+    // Bomb
+    bomb.active = at24c_ReadOneByte(0x000E);
+    bomb.x      = at24c_ReadOneByte(0x000F);
+    bomb.y      = at24c_ReadOneByte(0x0010);
+    bomb.ticks  = (at24c_ReadOneByte(0x0011) << 8) |
+                   at24c_ReadOneByte(0x0012);
+
+    highscore = (at24c_ReadOneByte(0x0013) << 8) |
+                 at24c_ReadOneByte(0x0014);
+
+    for (int x = 0; x < GRID_ROWS; x++)
+        for (int y = 0; y < GRID_COLS; y++)
+            gameGrid[x][y] = at24c_ReadOneByte(0x20 + x*GRID_COLS + y);
+}
+
+
+
+
+void refreshUIAfterLoad(void) {
+    lastScore = -1;  // ép updateScoreUI chạy lại
+    gameUIRendered = 1;
+    updateScoreUI();
+    led7_show_score_dual(score, highscore);
+}
+// =====================================================================

@@ -13,12 +13,16 @@
 #include "touch.h"
 #include "game_control.h"
 
-#define SCREEN_X 40
+#define SCREEN_X 5
 #define SCREEN_Y 35
-#define SCREEN_SIZE 160
+
+#define SCREEN_W 230   // chiều ngang to hơn
+#define SCREEN_H 180   // chiều dọc giữ nguyên
+
 #define CELL_SIZE 10
-#define GRID_ROWS SCREEN_SIZE/CELL_SIZE
-#define GRID_COLS SCREEN_SIZE/CELL_SIZE
+
+#define GRID_ROWS (SCREEN_W / CELL_SIZE)
+#define GRID_COLS (SCREEN_H / CELL_SIZE)
 
 extern uint8_t gameGrid[GRID_ROWS][GRID_COLS];
 

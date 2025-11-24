@@ -4,20 +4,13 @@
  */
 
 #include "game_display.h"
+#include "game_control.h"
+
 #include <stdlib.h>
 #include <string.h>
 #include "lcd.h"
-struct Fruit {
-    uint16_t x, y;
-    uint16_t color;
-    uint8_t  type;
-} fruit;
-struct Bomb {
-    uint16_t x, y;
-    uint8_t active;      // 0=không có, 1=đang hiện
-    int16_t  ticks;   // số bước rắn còn lại
+#include "at24c.h"
 
-} bomb;
 #define BOMB_LIFETIME_TICKS 27
 struct Snake snake;
 enum Direction snakeDirection = DOWN;
@@ -30,9 +23,10 @@ extern uint8_t selectedMap;
    - Khung (frame) trắng 1px nằm ở biên SCREEN_X..SCREEN_X+SCREEN_SIZE
    - Vùng vẽ PLAY_* là phần lõm vào 1px (để ô không chạm viền)        */
 #define FRAME_COLOR   WHITE
-#define PLAY_X        (SCREEN_X + 1)
-#define PLAY_Y        (SCREEN_Y + 1)
-#define PLAY_SIZE     (SCREEN_SIZE - 2)
+#define PLAY_X (SCREEN_X + 1)
+#define PLAY_Y (SCREEN_Y + 1)
+#define PLAY_W (SCREEN_W - 2)
+#define PLAY_H (SCREEN_H - 2)
 
 void placeObstaclePlus(void);
 void placeMazeObstacles(void) ;
@@ -49,10 +43,14 @@ SnakeShape snakeShape = SHAPE_SQUARE;  // mặc định vuông
 
 /* Ô cuối cùng sẽ kết thúc tại: PLAY_X + PLAY_SIZE - 1 (lọt trong khung) */
 
-static inline void drawPlayfieldFrame(void) {
-    lcd_DrawRectangle(SCREEN_X, SCREEN_Y,
-                      SCREEN_X + SCREEN_SIZE, SCREEN_Y + SCREEN_SIZE,
-                      FRAME_COLOR);
+inline void drawPlayfieldFrame(void) {
+	lcd_DrawRectangle(
+	    SCREEN_X,
+	    SCREEN_Y,
+	    SCREEN_X + SCREEN_W,
+	    SCREEN_Y + SCREEN_H,
+	    FRAME_COLOR
+	);
 }
 
 
@@ -85,21 +83,19 @@ void lcd_FillCircle(int x0, int y0, int radius, uint16_t color) {
 // Vẽ ô bình thường
 // ============================
 static inline void drawCell(uint8_t i, uint8_t j, uint16_t color) {
-    // Pixel bắt đầu của ô
     uint16_t x1 = PLAY_X + i * CELL_SIZE;
     uint16_t y1 = PLAY_Y + j * CELL_SIZE;
 
-    // Pixel kết thúc của ô (bao gồm) nhưng không vượt quá vùng PLAY
-    uint16_t x2 = x1 + CELL_SIZE ;
-    uint16_t y2 = y1 + CELL_SIZE ;
+    uint16_t x2 = x1 + CELL_SIZE;
+    uint16_t y2 = y1 + CELL_SIZE;
 
-    // Clamp để đảm bảo KHÔNG chạm viền ngoài (tránh đè viền)
-    uint16_t maxX = PLAY_X + PLAY_SIZE - 1;
-    uint16_t maxY = PLAY_Y + PLAY_SIZE - 1;
+    // đổi PLAY_SIZE → PLAY_W và PLAY_H
+    uint16_t maxX = PLAY_X + PLAY_W - 1;
+    uint16_t maxY = PLAY_Y + PLAY_H - 1;
+
     if (x2 > maxX) x2 = maxX;
     if (y2 > maxY) y2 = maxY;
 
-    // Nếu vì cấu hình CELL_SIZE không chia hết, ô mép có thể co lại 1px — chấp nhận.
     lcd_Fill(x1, y1, x2, y2, color);
 }
 
@@ -138,7 +134,7 @@ void drawCell_Shape(uint8_t i, uint8_t j, uint16_t color) {
 // ============================
 // Vẽ đầu rắn
 // ============================
-static void drawSnakeHeadCell(uint8_t i, uint8_t j, uint16_t color, enum Direction dir) {
+void drawSnakeHeadCell(uint8_t i, uint8_t j, uint16_t color, enum Direction dir) {
     uint16_t x1 = PLAY_X + i * CELL_SIZE;
     uint16_t y1 = PLAY_Y + j * CELL_SIZE;
     uint16_t x2 = x1 + CELL_SIZE - 1;
@@ -404,7 +400,7 @@ void initializeGame(void) {
             prevX[i][j] = prevY[i][j] = -1;
 
     // nền vùng chơi
-    lcd_Fill(PLAY_X, PLAY_Y, PLAY_X + PLAY_SIZE, PLAY_Y + PLAY_SIZE, BLACK);
+    lcd_Fill(PLAY_X, PLAY_Y, PLAY_X + PLAY_W, PLAY_Y + PLAY_H, BLACK);
 
     // Viền LCD (frame trắng)
     drawPlayfieldFrame();
@@ -459,53 +455,56 @@ void initializeGame(void) {
 
 
 void placeObstaclePlus(void) {
-    uint8_t cx = GRID_ROWS / 2 - 1;   // tâm
-    uint8_t cy = GRID_COLS / 2 - 1;
+    uint8_t cx = GRID_ROWS / 2;
+    uint8_t cy = GRID_COLS / 2;
 
-    // Dấu cộng ngang
-    for (int i = -4; i <= 4; i++) {
-        gameGrid[cx + i][cy] = 3;
-        drawCell(cx + i, cy, GBLUE);
+    // Ngang mỏng (2 px)
+    for (int x = cx - 4; x <= cx + 4; x++) {
+        gameGrid[x][cy] = 3;
+        drawCell(x, cy, GBLUE);
     }
 
-    // Dấu cộng dọc
-    for (int j = -4; j <= 4; j++) {
-        gameGrid[cx][cy + j] = 3;
-        drawCell(cx, cy + j, GBLUE);
+    // Dọc mỏng (2 px)
+    for (int y = cy - 4; y <= cy + 4; y++) {
+        gameGrid[cx][y] = 3;
+        drawCell(cx, y, GBLUE);
     }
 }
 
+
 void placeMazeObstacles(void) {
-    // ===== THANH DỌC BÊN TRÁI =====
-    for (int y = 2; y <= 10; y++) {
-        gameGrid[2][y] = 3;
-        drawCell(2, y, BRRED);
+
+    // ----- Vertical left -----
+    for (int y = 3; y <= 10; y++) {
+        gameGrid[4][y] = 3;
+        drawCell(4, y, BRRED);
     }
 
-    // ===== THANH DỌC BÊN PHẢI =====
-    for (int y = 5; y <= 15; y++) {
-        gameGrid[13][y] = 3;
-        drawCell(13, y, BRRED);
+    // ----- Vertical right -----
+    for (int y = 4; y <= 14; y++) {
+    	gameGrid[15][y] = 3;
+    	drawCell(15, y, BRRED);
+    }
+    	// Horizontal mid
+    	for (int x = 8; x <= 14; x++) {
+    	    gameGrid[x][8] = 3;
+    	    drawCell(x, 8, BRRED);
+    	}
+
+    // ----- Short vertical bottom -----
+    for (int y = 12; y <= 14; y++) {
+        gameGrid[8][y] = 3;
+        drawCell(8, y, BRRED);
     }
 
-    // ===== THANH NGANG GIỮA =====
-    for (int x = 4; x <= 12; x++) {
-        gameGrid[x][8] = 3;
-        drawCell(x, 8, BRRED);
-    }
-
-    // ===== THANH DỌC NGẮN BÊN DƯỚI =====
-    for (int y = 12; y <= 15; y++) {
-        gameGrid[7][y] = 3;
-        drawCell(7, y, BRRED);
-    }
-
-    // ===== THANH NGANG DƯỚI =====
-    for (int x = 3; x <= 10; x++) {
+    // ----- Horizontal bottom -----
+    for (int x = 6; x <= 11; x++) {
         gameGrid[x][15] = 3;
         drawCell(x, 15, BRRED);
     }
 }
+
+
 
 void placeBorderWalls(void) {
     // === Top border (viền trên) ===
@@ -516,7 +515,7 @@ void placeBorderWalls(void) {
 
     // === Bottom border (viền dưới) ===
     for (int x = 0; x < GRID_ROWS; x++) {
-        gameGrid[x][GRID_COLS - 1] = 3;
+        gameGrid[x][GRID_COLS] = 3;
         drawCell(x, GRID_COLS - 1, MAGENTA );
     }
 
@@ -528,7 +527,7 @@ void placeBorderWalls(void) {
 
     // === Right border (viền phải) ===
     for (int y = 0; y < GRID_COLS; y++) {
-        gameGrid[GRID_ROWS - 1][y] = 3;
+        gameGrid[GRID_ROWS][y] = 3;
         drawCell(GRID_ROWS - 1, y, MAGENTA);
     }
 }
@@ -629,13 +628,15 @@ void handleInput(void) {
 
 /* Start screen giữ nguyên như trước */
 void displayStartScreen(void) {
-    lcd_Fill(0, 0, 240, 320, BLACK);
-    lcd_ShowStr(SCREEN_X + 25, SCREEN_Y + 10, "SNAKE GAME", WHITE, BLACK, 24, 0);
 
-    lcd_ShowStr(SCREEN_X + 10, SCREEN_Y + 45, "Choose color", WHITE, BLACK, 16, 0);
+    lcd_Fill(0, 0, 240, 320, BLACK);
+    lcd_ShowStrCenter(120, SCREEN_Y + 10, "SNAKE GAME", WHITE, BLACK, 24, 0);
+
+    lcd_ShowStrCenter(120, SCREEN_Y + 45, "Choose color", WHITE, BLACK, 16, 0);
 
     uint16_t top  = SCREEN_Y + 70;
-    uint16_t left = SCREEN_X + 10;
+    uint16_t totalW = (26 * 4) + (10 * 3);   // 4 ô, gap 10px
+    uint16_t left = (240 - totalW) / 2;     // LCD rộng 240px → Center
     uint16_t w    = 26;
     uint16_t h    = 25;
     uint16_t gap  = 10;
@@ -669,7 +670,8 @@ void displayStartScreen(void) {
 
     // 4) "Choose shape"
     uint16_t shapeTitleTop = top + h + 20;  // dưới dãy màu một chút
-    lcd_ShowStr(SCREEN_X + 10, shapeTitleTop, "Choose shape", WHITE, BLACK, 16, 0);
+    lcd_ShowStrCenter(120, shapeTitleTop, "Choose shape", WHITE, BLACK, 16, 0);
+
     // ========== 5) Icon shape (chỉ icon, không chữ), nhỏ và căn giữa ==========
     uint16_t shapeTop      = shapeTitleTop + 20;
     uint16_t shapeBtnSize  = 28;   // nhỏ lại
@@ -678,7 +680,8 @@ void displayStartScreen(void) {
     // tổng chiều rộng của 2 nút + khoảng cách
     uint16_t shapeTotalW   = shapeBtnSize * 2 + shapeGap;
     // bắt đầu từ giữa màn hình
-    uint16_t shapeStartX   = SCREEN_X + (SCREEN_SIZE - shapeTotalW) / 2;
+    uint16_t shapeStartX   = SCREEN_X + (SCREEN_W - shapeTotalW) / 2;
+
     uint16_t shapeSquareX  = shapeStartX;                    // nút trái: SQUARE
     uint16_t shapeCircleX  = shapeStartX + shapeBtnSize + shapeGap; // nút phải: CIRCLE
 
@@ -706,23 +709,26 @@ void displayStartScreen(void) {
 
     // ========== 6) Button START (đặt dưới shape) ==========
     uint16_t btnTop = shapeTop + shapeBtnSize + 20;
-    lcd_Fill(SCREEN_X + 35, btnTop, SCREEN_X + SCREEN_SIZE - 35, btnTop + 45, GREEN);
-    lcd_Fill(SCREEN_X + 35, btnTop, SCREEN_X + SCREEN_SIZE - 35, btnTop + 2, WHITE);
-    lcd_Fill(SCREEN_X + 35, btnTop + 43, SCREEN_X + SCREEN_SIZE - 35, btnTop + 45, WHITE);
+    lcd_Fill(SCREEN_X + 35, btnTop, SCREEN_X + SCREEN_W - 35, btnTop + 45, GREEN);
+    lcd_Fill(SCREEN_X + 35, btnTop, SCREEN_X + SCREEN_W - 35, btnTop + 2, WHITE);
+    lcd_Fill(SCREEN_X + 35, btnTop + 41, SCREEN_X + SCREEN_W - 35, btnTop + 45, WHITE);
     lcd_Fill(SCREEN_X + 35, btnTop, SCREEN_X + 37, btnTop + 45, WHITE);
-    lcd_Fill(SCREEN_X + SCREEN_SIZE - 37, btnTop, SCREEN_X + SCREEN_SIZE - 35, btnTop + 45, WHITE);
-    lcd_ShowStr(SCREEN_X + 50, btnTop + 10, "START", WHITE, GREEN, 24, 1);
+    lcd_Fill(SCREEN_X + SCREEN_W - 37, btnTop, SCREEN_X + SCREEN_W - 35, btnTop + 45, WHITE);
+
+    lcd_ShowStrCenter(120, btnTop + 10, "START", WHITE, GREEN, 24, 1);
 
     // ========== 7) Preview (clear vùng trước khi vẽ để KO còn gạch trắng) ==========
        uint16_t previewTop   = btnTop + 55;
        uint16_t previewLeft  = SCREEN_X + 50;
        uint16_t previewW     = 140;
-       uint16_t previewH     = 40;
+       uint16_t previewH = 60;
        // clear vùng preview
-       lcd_Fill(previewLeft, previewTop, previewLeft + previewW, previewTop + previewH, BLACK);
+       lcd_Fill(previewLeft, previewTop, previewLeft + previewW, previewTop + previewH + 20, BLACK);
+
 
        uint16_t snakePreviewY = previewTop + 10;
-       uint16_t snakePreviewX = previewLeft + 20;
+       uint16_t snakePreviewX = previewLeft + (previewW - 54) / 2;
+
        uint16_t previewColor  = (snake.color ? snake.color : GREEN);
 
 
@@ -768,7 +774,8 @@ void displayStartScreen(void) {
                }
            }
        }
-       lcd_ShowStr(previewLeft + previewW/2 - 20, previewTop + previewH - 12, "Preview", WHITE, BLACK, 12, 0);
+       lcd_ShowStrCenter(120, previewTop + previewH - 12, "Preview", WHITE, BLACK, 12, 0);
+
    }
 
 
@@ -780,11 +787,15 @@ uint16_t startScreenHandleColorTouch(void) {
     uint16_t ty = touch_GetY();
 
     uint16_t top  = SCREEN_Y + 70;
-    uint16_t left = SCREEN_X + 10;
     uint16_t w    = 26;
     uint16_t h    = 25;
     uint16_t gap  = 10;
 
+    // LEFT đúng chuẩn (center)
+    uint16_t totalW = (w * 4) + (gap * 3);
+    uint16_t left = (240 - totalW) / 2;
+
+    // GREEN
     if (tx > left && tx < left + w &&
         ty > top  && ty < top + h) {
         return GREEN;
@@ -807,8 +818,11 @@ uint16_t startScreenHandleColorTouch(void) {
         ty > top && ty < top + h) {
         return YELLOW;
     }
+
     return 0;
 }
+
+
 uint8_t startScreenHandleShapeTouch(void) {
     if (!touch_IsTouched()) return 0;
 
@@ -824,7 +838,7 @@ uint8_t startScreenHandleShapeTouch(void) {
     uint16_t shapeBtnSize  = 28;
     uint16_t shapeGap      = 24;
     uint16_t shapeTotalW   = shapeBtnSize * 2 + shapeGap;
-    uint16_t shapeStartX   = SCREEN_X + (SCREEN_SIZE - shapeTotalW) / 2;
+    uint16_t shapeStartX = SCREEN_X + (SCREEN_W - shapeTotalW) / 2;
     uint16_t shapeSquareX  = shapeStartX;
     uint16_t shapeCircleX  = shapeStartX + shapeBtnSize + shapeGap;
 
@@ -896,7 +910,7 @@ static void drawMapPreview(uint8_t mapId,
 
 void displayMapSelectScreen(void) {
     lcd_Fill(0,0,240,320,BLACK);
-    lcd_ShowStr(40, 10, "SELECT MAP", WHITE, BLACK, 24, 0);
+    lcd_ShowStrCenter(120, 20, "SELECT MAP", WHITE, BLACK, 24, 1);
 
     uint16_t w = 90, h = 60;
 
@@ -922,7 +936,8 @@ void displayMapSelectScreen(void) {
 
     lcd_Fill(50, 260, 190, 300, GREEN);
     lcd_DrawRectangle(50, 260, 190, 300, WHITE);
-    lcd_ShowStr(95, 272, "START", WHITE, GREEN, 24, 1);
+    lcd_ShowStrCenter(120, 272, "START", WHITE, GREEN, 24, 1);
+
 }
 
 
@@ -949,4 +964,82 @@ int mapSelectHandleTouch(void) {
     return -1;
 }
 
+void lcd_ShowStrCenter(uint16_t x_center, uint16_t y,
+                       const char *str,
+                       uint16_t fc, uint16_t bc,
+                       uint8_t size, uint8_t bold)
+{
+    uint16_t len = strlen(str) * (size/2);
+    uint16_t x = x_center - len/2;
+    lcd_ShowStr(x, y, str, fc, bc, size, bold);
+}
 
+void redrawGameFromState(void)
+{
+    // 1) XÓA VÙNG CHƠI
+    lcd_Fill(PLAY_X, PLAY_Y, PLAY_X + PLAY_W, PLAY_Y + PLAY_H, BLACK);
+
+    // 2) QUÉT GRID VÀ VẼ LẠI TỪNG Ô
+    for (int gx = 0; gx < GRID_ROWS; gx++) {
+        for (int gy = 0; gy < GRID_COLS; gy++) {
+
+            uint8_t cell = gameGrid[gx][gy];
+
+            // Tính toạ độ pixel cho CELL
+            int x1 = PLAY_X + gx * CELL_SIZE;
+            int y1 = PLAY_Y + gy * CELL_SIZE;
+            int x2 = x1 + CELL_SIZE - 1;
+            int y2 = y1 + CELL_SIZE - 1;
+
+            switch (cell)
+            {
+                case 3:   // ======= TƯỜNG =======
+                    drawCell(gx, gy, MAGENTA);
+                    break;
+
+                case 1:   // ======= RẮN =======
+                    if (gx == snake.headX && gy == snake.headY)
+                        drawSnakeHeadCell(gx, gy, snake.color, snakeDirection);
+                    else
+                        drawCell_Shape(gx, gy, snake.color);
+                    break;
+
+                case 2:   // ======= FRUIT =======
+                {
+                    int cx = (x1 + x2) / 2;
+                    int cy = (y1 + y2) / 2;
+                    int r = CELL_SIZE / 2 - 2;
+
+                    lcd_Fill(x1, y1, x2, y2, BLACK);  // clear nền
+                    lcd_FillCircle(cx, cy, r, fruit.color);
+                }
+                    break;
+
+                case 4:   // ======= BOMB =======
+                    drawCell_Shape(gx, gy, BRRED);
+                    break;
+
+                default:
+                    // 0 = trống → không vẽ
+                    break;
+            }
+        }
+    }
+}
+
+
+void redrawMapFromGrid(void) {
+    for (int x = 0; x < GRID_ROWS; x++) {
+        for (int y = 0; y < GRID_COLS; y++) {
+
+            if (gameGrid[x][y] == 3)       // Wall
+                drawCell(x, y, MAGENTA);
+
+            else if (gameGrid[x][y] == 2) // Fruit
+                drawCellFruit(x, y);
+
+            else if (gameGrid[x][y] == 4) // Bomb
+                drawCell(x, y, BRRED);
+        }
+    }
+}

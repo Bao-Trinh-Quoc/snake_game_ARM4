@@ -40,6 +40,7 @@
 #include "game_display.h"
 #include "game_control.h"
 #include "led7seg_app.h"
+#include "at24c.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -65,6 +66,7 @@
 #define CLEAR 2
 
 int draw_Status = INIT;
+extern GameState currentState;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -129,7 +131,7 @@ int main(void)
 //  lcd_Clear(BLACK);
 
 //  SNAKE
-  lcd_Clear(WHITE);
+  //lcd_Clear(WHITE);
   while (1)
   {
 //	  //scan touch screen
@@ -214,7 +216,52 @@ void system_init(){
 	  button_init();
 	  lcd_init();
 	  touch_init();
+	  /* ========= LOAD GAME STATE TỪ EEPROM ========= */
+	  uint8_t saved = at24c_ReadOneByte(0x0000);
+
+	  switch (saved)
+	  {
+	      case GAME_START:
+	          currentState = GAME_START;
+	          displayStartScreen();
+	          break;
+
+	      case GAME_MAP_SELECT:
+	          currentState = GAME_MAP_SELECT;
+	          displayMapSelectScreen();
+	          break;
+
+	      case GAME_PLAY:
+	      	          currentState = GAME_PAUSE;  // Pause để an toàn, bấm pause chạy tiếp
+
+	      	          loadGameState();            // Load score, highscore, map (grid), snake
+
+	      	          lcd_Fill(0, 0, 240, 320, BLACK);  // Xóa màn hình
+
+	      	          initializeButtons();        // Vẽ nút Home, Pause, Score box
+
+	      	          redrawGameFromState();      // Vẽ rắn + bomb + tường/map từ grid đã load
+
+	      	          drawPlayfieldFrame();       // Vẽ viền trắng
+
+	      	          refreshUIAfterLoad();       // Hiện score đúng (không 829)
+
+	      	          break;
+	      case GAME_OVER:
+	          currentState = GAME_OVER;
+	          displayGameOverScreen();
+	          break;
+
+	      default:
+	          currentState = GAME_START;
+	          displayStartScreen();
+	          break;
+	  }
+	  /* ============================================= */
+
 	  setTimer2(50);
+	  //lcd_Clear(WHITE);
+
 }
 
 uint8_t count_led_debug = 0;
