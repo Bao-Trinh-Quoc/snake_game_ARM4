@@ -136,30 +136,31 @@ void drawCell_Shape(uint8_t i, uint8_t j, uint16_t color) {
 // ============================
 void drawSnakeHeadCell(uint8_t i, uint8_t j, uint16_t color, enum Direction dir)
 {
-    uint16_t x1 = PLAY_X + i * CELL_SIZE;
-    uint16_t y1 = PLAY_Y + j * CELL_SIZE;
-    uint16_t x2 = x1 + CELL_SIZE ;
-    uint16_t y2 = y1 + CELL_SIZE ;
+    uint16_t x1 = PLAY_X + i * CELL_SIZE ;
+    uint16_t y1 = PLAY_Y + j * CELL_SIZE ;
+    uint16_t x2 = x1 + CELL_SIZE -1;
+    uint16_t y2 = y1 + CELL_SIZE -1;
 
-    // FULL Ô như thân (SQUARE hoặc CIRCLE)
+    // FULL ô như thân (vuông hoặc tròn)
     int cx = x1 + CELL_SIZE / 2;
     int cy = y1 + CELL_SIZE / 2;
-    int r  = CELL_SIZE/2;
+    int r  = CELL_SIZE / 2 -1;
 
     drawCell(i, j, BLACK);   // clear nền trước
 
-    // ==== VẼ ĐẦU KHÔNG CÒN VIỀN ====
+    // ===== Vẽ đầu KHÔNG viền =====
     if (snakeShape == SHAPE_CIRCLE) {
-        // FULL hình tròn như thân
+        // Hình tròn đầy
         lcd_FillCircle(cx, cy, r, color);
     } else {
-        // FULL hình vuông như thân
+        // Hình vuông đầy
         lcd_Fill(x1, y1, x2, y2, color);
     }
 
-    // ==== MẮT RẮN ====
-    int eyeR = r / 3;
+    // ===== MẮT RẮN =====
+    int eyeR   = r / 3;
     if (eyeR < 2) eyeR = 2;
+
     int pupilR = eyeR / 2;
 
     int ex1, ey1, ex2, ey2;
