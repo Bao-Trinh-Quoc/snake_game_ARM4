@@ -134,71 +134,69 @@ void drawCell_Shape(uint8_t i, uint8_t j, uint16_t color) {
 // ============================
 // Vẽ đầu rắn
 // ============================
-void drawSnakeHeadCell(uint8_t i, uint8_t j, uint16_t color, enum Direction dir) {
+void drawSnakeHeadCell(uint8_t i, uint8_t j, uint16_t color, enum Direction dir)
+{
     uint16_t x1 = PLAY_X + i * CELL_SIZE;
     uint16_t y1 = PLAY_Y + j * CELL_SIZE;
-    uint16_t x2 = x1 + CELL_SIZE - 1;
-    uint16_t y2 = y1 + CELL_SIZE - 1;
+    uint16_t x2 = x1 + CELL_SIZE ;
+    uint16_t y2 = y1 + CELL_SIZE ;
 
-    int x_center = x1 + CELL_SIZE / 2;
-    int y_center = y1 + CELL_SIZE / 2;
-    int radius   = CELL_SIZE /2-2; // giảm radius để không chạm ô khác
+    // FULL Ô như thân (SQUARE hoặc CIRCLE)
+    int cx = x1 + CELL_SIZE / 2;
+    int cy = y1 + CELL_SIZE / 2;
+    int r  = CELL_SIZE/2;
 
-    // Xóa ô hiện tại trước khi vẽ
-    drawCell(i, j, BLACK);
+    drawCell(i, j, BLACK);   // clear nền trước
 
-    // Vẽ đầu rắn
+    // ==== VẼ ĐẦU KHÔNG CÒN VIỀN ====
     if (snakeShape == SHAPE_CIRCLE) {
-        lcd_FillCircle(x_center, y_center, radius, color);
+        // FULL hình tròn như thân
+        lcd_FillCircle(cx, cy, r, color);
     } else {
-        drawCell(i, j, color); // vuông
+        // FULL hình vuông như thân
+        lcd_Fill(x1, y1, x2, y2, color);
     }
 
-    // ==== Vẽ mắt ====
-    int eyeSize   = radius / 3;
-    int pupilSize = eyeSize / 2;
-    int offset = radius - 2;
+    // ==== MẮT RẮN ====
+    int eyeR = r / 3;
+    if (eyeR < 2) eyeR = 2;
+    int pupilR = eyeR / 2;
 
-    int ex1 = x_center, ey1 = y_center;
-    int ex2 = x_center, ey2 = y_center;
+    int ex1, ey1, ex2, ey2;
 
     switch(dir) {
         case UP:
-            ex1 = x_center - offset/2; ey1 = y_center - offset/2;
-            ex2 = x_center + offset/2; ey2 = y_center - offset/2;
+            ex1 = cx - eyeR; ey1 = y1 + 3;
+            ex2 = cx + eyeR; ey2 = y1 + 3;
             break;
+
         case DOWN:
-            ex1 = x_center - offset/2; ey1 = y_center + offset/2;
-            ex2 = x_center + offset/2; ey2 = y_center + offset/2;
+            ex1 = cx - eyeR; ey1 = y2 - 3;
+            ex2 = cx + eyeR; ey2 = y2 - 3;
             break;
+
         case LEFT:
-            ex1 = x_center - offset/2; ey1 = y_center - offset/2;
-            ex2 = x_center - offset/2; ey2 = y_center + offset/2;
+            ex1 = x1 + 3; ey1 = cy - eyeR;
+            ex2 = x1 + 3; ey2 = cy + eyeR;
             break;
-        case RIGHT:
-        default:
-            ex1 = x_center + offset/2; ey1 = y_center - offset/2;
-            ex2 = x_center + offset/2; ey2 = y_center + offset/2;
+
+        default: // RIGHT
+            ex1 = x2 - 3; ey1 = cy - eyeR;
+            ex2 = x2 - 3; ey2 = cy + eyeR;
             break;
     }
 
-    // Clamp để mắt không tràn
-    if (ex1 < x1 + eyeSize) ex1 = x1 + eyeSize;
-    if (ex1 > x2 - eyeSize) ex1 = x2 - eyeSize;
-    if (ey1 < y1 + eyeSize) ey1 = y1 + eyeSize;
-    if (ey1 > y2 - eyeSize) ey1 = y2 - eyeSize;
+    // Mắt trắng
+    lcd_FillCircle(ex1, ey1, eyeR, WHITE);
+    lcd_FillCircle(ex2, ey2, eyeR, WHITE);
 
-    if (ex2 < x1 + eyeSize) ex2 = x1 + eyeSize;
-    if (ex2 > x2 - eyeSize) ex2 = x2 - eyeSize;
-    if (ey2 < y1 + eyeSize) ey2 = y1 + eyeSize;
-    if (ey2 > y2 - eyeSize) ey2 = y2 - eyeSize;
-
-    lcd_FillCircle(ex1, ey1, eyeSize, WHITE);
-    lcd_FillCircle(ex2, ey2, eyeSize, WHITE);
-
-    lcd_FillCircle(ex1, ey1, pupilSize, BLACK);
-    lcd_FillCircle(ex2, ey2, pupilSize, BLACK);
+    // Con ngươi
+    lcd_FillCircle(ex1, ey1, pupilR, BLACK);
+    lcd_FillCircle(ex2, ey2, pupilR, BLACK);
 }
+
+
+
 
 /* Không redraw toàn màn để tránh giật */
 void renderScreen(void) {
