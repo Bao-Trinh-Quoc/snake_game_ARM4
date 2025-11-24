@@ -216,6 +216,7 @@ void system_init(){
 	  button_init();
 	  lcd_init();
 	  touch_init();
+	  buzzer_init();
 	  /* ========= LOAD GAME STATE TỪ EEPROM ========= */
 	  uint8_t saved = at24c_ReadOneByte(0x0000);
 
@@ -244,6 +245,7 @@ void system_init(){
 
 	      	          drawPlayfieldFrame();       // Vẽ viền trắng
 
+
 	      	          refreshUIAfterLoad();       // Hiện score đúng (không 829)
 
 	      	          break;
@@ -258,7 +260,8 @@ void system_init(){
 	          break;
 	  }
 	  /* ============================================= */
-
+	  generateFruit();
+	      generateBomb();
 	  setTimer2(50);
 	  //lcd_Clear(WHITE);
 

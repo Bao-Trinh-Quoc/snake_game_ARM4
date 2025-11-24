@@ -146,6 +146,9 @@ void gameFSM(void) {
             	 }
             }
             if (isStartScreenTouched()) {
+            	buzzer_SetVolume(90);
+            	    HAL_Delay(20);
+            	    buzzer_SetVolume(0);
                 currentState = GAME_MAP_SELECT;
                 at24c_WriteOneByte(0x0000, currentState);
                 lcd_Fill(0,0,240,320,BLACK);
@@ -188,6 +191,9 @@ void gameFSM(void) {
 
                 if (cell == 1 || cell == 3 || cell == 4) {
                     /* 1 = thân rắn, 3 = tường, 4 = bomb → Game Over */
+                	buzzer_SetVolume(90);   // âm lớn khi chết
+                	    HAL_Delay(300);
+                	    buzzer_SetVolume(0);
                     currentState         = GAME_OVER;
                     at24c_WriteOneByte(0x0000, currentState);
                     gameOverScreenDrawn  = 0;
@@ -196,6 +202,9 @@ void gameFSM(void) {
                 }
                 else if (cell == 2) {
                     /* ăn mồi */
+                    buzzer_SetVolume(90);   // kêu 1 tí khi ăn trái
+                    HAL_Delay(20);
+                    buzzer_SetVolume(0);
                     score++;
                     if (score > highscore) highscore = score;
                     led7_show_score_dual(score, highscore);
@@ -239,11 +248,18 @@ void gameFSM(void) {
             int sel = mapSelectHandleTouch();
 
             if (sel >= 0 && sel <= 3) {
+            	buzzer_SetVolume(90);
+            	    HAL_Delay(20);
+            	    buzzer_SetVolume(0);
+
                 selectedMap = sel;
                 displayMapSelectScreen();
             }
 
             if (sel == 100) {  // START
+            	buzzer_SetVolume(90);
+            	    HAL_Delay(20);
+            	    buzzer_SetVolume(0);
                 lcd_Fill(0,0,240,320,BLACK);
                 currentState = GAME_PLAY;
                 at24c_WriteOneByte(0x0000, currentState);
@@ -256,6 +272,7 @@ void gameFSM(void) {
                     case 2: placeObstaclePlus();  break;
                     case 3: placeMazeObstacles(); break;
                 }
+
 
                 setTimer_button(5);
                 setTimer_snake(300);
@@ -287,6 +304,9 @@ void gameFSM(void) {
         case GAME_OVER:
             /* vẽ overlay 1 lần, đợi người chơi bấm RESTART */
             if (!gameOverScreenDrawn) {
+            	buzzer_SetVolume(90);
+            	    HAL_Delay(300);
+            	    buzzer_SetVolume(0);
                 displayGameOverScreen();
                 gameOverScreenDrawn = 1;
             }
