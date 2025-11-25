@@ -37,7 +37,7 @@ static ControlButton controlButtons[4];
 static uint16_t score = 0;
 static uint8_t startScreenDrawn = 0;
 static uint8_t gameUIRendered = 0;
-static uint16_t highscore = 0;
+uint16_t highscore = 0;
 
 void initializeButtons(void);
 

@@ -37,7 +37,7 @@ extern Fruit fruit;
 extern Bomb bomb;
 extern GameState currentState;
 void gameFSM(void);
-
+extern uint16_t highscore;
 uint8_t isStartScreenTouched(void);
 void drawPlayfieldFrame(void);
 uint8_t isRetryButtonTouched(void);
