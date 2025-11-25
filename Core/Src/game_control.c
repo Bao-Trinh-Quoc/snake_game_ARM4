@@ -112,10 +112,6 @@ static inline uint8_t isRestartTouched(void) {
 void gameFSM(void) {
     switch (currentState) {
         case GAME_INIT:
-        	        uint8_t h1 = at24c_ReadOneByte(0x0013);
-        	        uint8_t h2 = at24c_ReadOneByte(0x0014);
-        	        highscore = (h1 << 8) | h2;
-        	        highscoreLoaded = 1;
             score = 0;
             currentState = GAME_START;
             startInputLock = 1;   // [NEW] chờ nhả tay sau khi vào màn Start
