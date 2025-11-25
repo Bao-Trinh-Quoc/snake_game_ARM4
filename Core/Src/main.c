@@ -216,6 +216,7 @@ void system_init(){
 	  button_init();
 	  lcd_init();
 	  touch_init();
+
 	  uint8_t h1 = at24c_ReadOneByte(0x0013);
 	  uint8_t h2 = at24c_ReadOneByte(0x0014);
 	  highscore = (h1 << 8) | h2;

@@ -113,6 +113,7 @@ void gameFSM(void) {
     switch (currentState) {
         case GAME_INIT:
             score = 0;
+            //highscore = 0;
             currentState = GAME_START;
             startInputLock = 1;   // [NEW] chờ nhả tay sau khi vào màn Start
 
@@ -312,6 +313,11 @@ void gameFSM(void) {
                 displayGameOverScreen();
                 gameOverScreenDrawn = 1;
             }
+            if (score > highscore) {
+                    highscore = score;
+                    at24c_WriteOneByte(0x0013, highscore >> 8);
+                    at24c_WriteOneByte(0x0014, highscore & 0xFF);
+                }
 
             if (isRestartTouched()) {
                 currentState     = GAME_INIT;  /* theo yêu cầu: RESTART → về INIT */
