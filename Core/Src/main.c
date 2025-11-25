@@ -260,8 +260,10 @@ void system_init(){
 	          break;
 	  }
 	  /* ============================================= */
+	  if (saved == GAME_PLAY) {
 	  generateFruit();
-	      generateBomb();
+	  generateBomb();
+	  }
 	  setTimer2(50);
 	  //lcd_Clear(WHITE);
 

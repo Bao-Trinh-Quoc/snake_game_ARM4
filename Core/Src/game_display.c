@@ -25,8 +25,8 @@ extern uint8_t selectedMap;
 #define FRAME_COLOR   WHITE
 #define PLAY_X (SCREEN_X + 1)
 #define PLAY_Y (SCREEN_Y + 1)
-#define PLAY_W (SCREEN_W - 2)
-#define PLAY_H (SCREEN_H - 2)
+#define PLAY_W (SCREEN_W - 1)
+#define PLAY_H (SCREEN_H - 1)
 
 void placeObstaclePlus(void);
 void placeMazeObstacles(void) ;
@@ -86,12 +86,12 @@ static inline void drawCell(uint8_t i, uint8_t j, uint16_t color) {
     uint16_t x1 = PLAY_X + i * CELL_SIZE;
     uint16_t y1 = PLAY_Y + j * CELL_SIZE;
 
-    uint16_t x2 = x1 + CELL_SIZE;
-    uint16_t y2 = y1 + CELL_SIZE;
+    uint16_t x2 = x1 + CELL_SIZE ;
+    uint16_t y2 = y1 + CELL_SIZE ;
 
     // đổi PLAY_SIZE → PLAY_W và PLAY_H
-    uint16_t maxX = PLAY_X + PLAY_W - 1;
-    uint16_t maxY = PLAY_Y + PLAY_H - 1;
+    uint16_t maxX = PLAY_X + PLAY_W ;
+    uint16_t maxY = PLAY_Y + PLAY_H ;
 
     if (x2 > maxX) x2 = maxX;
     if (y2 > maxY) y2 = maxY;
@@ -154,7 +154,7 @@ void drawSnakeHeadCell(uint8_t i, uint8_t j, uint16_t color, enum Direction dir)
         lcd_FillCircle(cx, cy, r, color);
     } else {
         // Hình vuông đầy
-        lcd_Fill(x1, y1, x2, y2, color);
+    	lcd_Fill(x1 + 1, y1 + 1, x2 + 1, y2 + 1, color);
     }
 
     // ===== MẮT RẮN =====
