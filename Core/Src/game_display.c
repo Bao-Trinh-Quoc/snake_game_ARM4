@@ -11,7 +11,7 @@
 #include "lcd.h"
 #include "at24c.h"
 
-#define BOMB_LIFETIME_TICKS 27
+#define BOMB_LIFETIME_TICKS 30
 struct Snake snake;
 enum Direction snakeDirection = DOWN;
 #define GRID_BG_COLOR BLACK
@@ -295,7 +295,7 @@ void generateFruit(void) {
                 lcd_Fill(bx1, by1, bx2, by2, BLACK);
 
                 // vẽ bomb: ô đỏ sẫm + dấu X trắng
-                uint16_t inset = 2;
+                uint16_t inset = 0;
                 uint16_t ix1 = bx1 + inset;
                 uint16_t iy1 = by1 + inset;
                 uint16_t ix2 = bx2 - inset;

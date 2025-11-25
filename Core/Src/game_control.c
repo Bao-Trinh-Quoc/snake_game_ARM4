@@ -18,8 +18,8 @@
 
 #define PLAY_X (SCREEN_X + 1)
 #define PLAY_Y (SCREEN_Y + 1)
-#define PLAY_W (SCREEN_W - 2)
-#define PLAY_H (SCREEN_H - 2)
+#define PLAY_W (SCREEN_W - 1)
+#define PLAY_H (SCREEN_H - 1)
 
 uint8_t selectedMap = 0;
 
@@ -281,8 +281,10 @@ void gameFSM(void) {
         break;
 
         case GAME_PAUSE:
+        	lcd_ShowStr(100, 110, "PAUSED", YELLOW, BLACK, 16, 1);
             // Nhấn PAUSE lần nữa -> tiếp tục chơi
             if (isPauseButtonTouched()) {
+            	lcd_ShowStr(100, 110, "PAUSED", BLACK, BLACK, 16, 1);
                 currentState = GAME_PLAY;
                 // Bật lại timer để rắn và button hoạt động
                 setTimer_button(5);
