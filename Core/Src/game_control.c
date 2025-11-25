@@ -305,6 +305,10 @@ void gameFSM(void) {
 
 
         case GAME_OVER:
+            if (score > highscore) {
+                    highscore = score;
+                    saveGameState();
+                }
             /* vẽ overlay 1 lần, đợi người chơi bấm RESTART */
             if (!gameOverScreenDrawn) {
             	buzzer_SetVolume(90);
@@ -313,11 +317,7 @@ void gameFSM(void) {
                 displayGameOverScreen();
                 gameOverScreenDrawn = 1;
             }
-            if (score > highscore) {
-                    highscore = score;
-                    at24c_WriteOneByte(0x0013, highscore >> 8);
-                    at24c_WriteOneByte(0x0014, highscore & 0xFF);
-                }
+
 
             if (isRestartTouched()) {
                 currentState     = GAME_INIT;  /* theo yêu cầu: RESTART → về INIT */
