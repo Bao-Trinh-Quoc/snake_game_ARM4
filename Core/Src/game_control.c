@@ -38,6 +38,7 @@ static uint16_t score = 0;
 static uint8_t startScreenDrawn = 0;
 static uint8_t gameUIRendered = 0;
 uint16_t highscore = 0;
+static uint8_t highscore_saved = 0;
 
 void initializeButtons(void);
 
@@ -113,6 +114,7 @@ void gameFSM(void) {
     switch (currentState) {
         case GAME_INIT:
             score = 0;
+            highscore_saved = 0;
             //highscore = 0;
             currentState = GAME_START;
             startInputLock = 1;   // [NEW] chờ nhả tay sau khi vào màn Start
@@ -313,10 +315,11 @@ void gameFSM(void) {
                 displayGameOverScreen();
                 gameOverScreenDrawn = 1;
             }
-            if (score > highscore) {
+            if (score > highscore && !highscore_saved) {
                     highscore = score;
                     at24c_WriteOneByte(0x0013, highscore >> 8);
                     at24c_WriteOneByte(0x0014, highscore & 0xFF);
+                    highscore_saved = 1;
                 }
 
             if (isRestartTouched()) {
