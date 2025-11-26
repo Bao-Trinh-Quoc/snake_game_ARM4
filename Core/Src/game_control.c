@@ -305,10 +305,8 @@ void gameFSM(void) {
 
 
         case GAME_OVER:
-            if (score > highscore) {
-                    highscore = score;
-                    saveGameState();
-                }
+        	at24c_WriteOneByte(0x0013, (highscore >> 8));
+        	at24c_WriteOneByte(0x0014, (highscore & 0xFF));
             /* vẽ overlay 1 lần, đợi người chơi bấm RESTART */
             if (!gameOverScreenDrawn) {
             	buzzer_SetVolume(90);
@@ -328,6 +326,7 @@ void gameFSM(void) {
                 lastScore        = -1;
                 lcd_Fill(0, 0, 240, 320, BLACK);
             }
+            HAL_Delay(10);
             break;
     }
     led7_show_score_dual(score, highscore);
@@ -547,8 +546,6 @@ void saveGameState() {
 
     at24c_WriteOneByte(0x0001, selectedMap);
 
-    at24c_WriteOneByte(0x0002, (score >> 8));
-    at24c_WriteOneByte(0x0003, (score & 0xFF));
 
     at24c_WriteOneByte(0x0004, (snake.color >> 8));
     at24c_WriteOneByte(0x0005, (snake.color & 0xFF));
@@ -586,8 +583,7 @@ void loadGameState() {
 
     selectedMap = at24c_ReadOneByte(0x0001);
 
-    score = (at24c_ReadOneByte(0x0002) << 8) |
-             at24c_ReadOneByte(0x0003);
+    score = 0;
 
     snake.color = (at24c_ReadOneByte(0x0004) << 8) |
                    at24c_ReadOneByte(0x0005);

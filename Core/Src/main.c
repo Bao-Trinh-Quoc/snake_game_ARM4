@@ -132,6 +132,11 @@ int main(void)
 
 //  SNAKE
   //lcd_Clear(WHITE);
+  extern uint16_t TP_Read_AD(uint8_t CMD);
+  extern uint8_t CMD_RDX;
+  extern uint8_t CMD_RDY;
+  //lcd_Fill(0,0,240,320,BLACK);
+  //touch_Adjust();
   while (1)
   {
 //	  //scan touch screen
@@ -150,9 +155,26 @@ int main(void)
 
 //	 SNAKE
 	  // button
+	  //touch_Scan();
+//	  touch_Scan();  // BẮT BUỘC
+//
+//	     if (HAL_GPIO_ReadPin(T_PEN_GPIO_Port, T_PEN_Pin) == 0) {  // kiểm tra trực tiếp
+//	         uint16_t x = touch_GetX();
+//	         uint16_t y = touch_GetY();
+//
+//	         // test giá trị thật
+//	         lcd_ShowIntNum(10, 10, x, 4, WHITE, BLACK, 16);
+//	         lcd_ShowIntNum(10, 30, y, 4, WHITE, BLACK, 16);
+//
+//	         lcd_DrawPoint(x, y, RED);
+//	     }
+//
+//	     HAL_Delay(100);
+	  touch_Scan();
 	  button_Scan();
 	  //scan touch screen
-	  touch_Scan();
+
+
 	  if (flag_timer2 == 1) {
 		  gameFSM();
 	  }
@@ -251,6 +273,7 @@ void system_init(){
 
 
 	      	          refreshUIAfterLoad();       // Hiện score đúng (không 829)
+
 
 	      	          break;
 	      case GAME_OVER:
